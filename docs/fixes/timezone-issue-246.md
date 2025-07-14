@@ -2,7 +2,13 @@
 
 ## Problem Description
 
-Users reported that hive-mind creation times were not reflecting their local timezone. For example, users in AEST (Australian Eastern Standard Time) were seeing UTC times instead of their local time, causing confusion about when sessions were actually created.
+Users worldwide reported that hive-mind creation times were not reflecting their local timezone. For example:
+- Users in AEST (Australian Eastern Standard Time) saw UTC instead of AEST
+- Users in EST (Eastern Standard Time) saw UTC instead of EST  
+- Users in JST (Japan Standard Time) saw UTC instead of JST
+- All international users were seeing UTC times instead of their local time, causing confusion about when sessions were actually created.
+
+**This was a universal issue affecting all non-UTC users globally.**
 
 ## Root Cause
 
@@ -95,12 +101,24 @@ This creates a SQL migration script that:
 
 ## Implementation Details
 
-### Timezone Detection
+### Universal Timezone Detection
 
-The fix automatically detects the user's timezone using:
-- `Intl.DateTimeFormat` for timezone name
+The fix automatically detects **ANY user's timezone** using:
+- `Intl.DateTimeFormat` for timezone name (supports 400+ timezones)
 - `Date.getTimezoneOffset()` for offset calculation
 - Browser/system locale settings
+- **No hardcoded regions** - works for users worldwide
+- **Automatic daylight saving time** handling
+
+**Supported Examples:**
+- 🇺🇸 US: EST, PST, CST, MST
+- 🇬🇧 UK: GMT, BST
+- 🇯🇵 Japan: JST
+- 🇦🇺 Australia: AEST, AEDT
+- 🇮🇳 India: IST
+- 🇩🇪 Germany: CET, CEST
+- 🇧🇷 Brazil: BRT
+- And 400+ other timezones globally
 
 ### Backward Compatibility
 

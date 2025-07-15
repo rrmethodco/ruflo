@@ -2,8 +2,8 @@
  * Basic E2E test to ensure test infrastructure works
  */
 
-const { execSync } = require('child_process');
-const { existsSync } = require('fs');
+import { execSync } from 'child_process';
+import { existsSync } from 'fs';
 
 describe('Basic E2E Test Suite', () => {
   test('should execute help command', () => {

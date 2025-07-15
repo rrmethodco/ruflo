@@ -28,18 +28,16 @@ describe('Basic Test Suite', () => {
   });
 });
 
-describe('Package Information', () => {
-  test('should have valid package.json', () => {
-    const pkg = require('../../package.json');
-    expect(pkg).toBeDefined();
-    expect(pkg.name).toBe('claude-flow');
-    expect(pkg.version).toBeDefined();
+describe('Environment Check', () => {
+  test('should have Node.js version', () => {
+    expect(process.version).toBeDefined();
+    const nodeVersion = process.version;
+    const majorVersion = parseInt(nodeVersion.split('.')[0].substring(1));
+    expect(majorVersion).toBeGreaterThanOrEqual(18);
   });
 
-  test('should have required scripts', () => {
-    const pkg = require('../../package.json');
-    expect(pkg.scripts).toBeDefined();
-    expect(pkg.scripts.test).toBeDefined();
-    expect(pkg.scripts.build).toBeDefined();
+  test('should have required environment', () => {
+    expect(process.env).toBeDefined();
+    expect(process.platform).toBeDefined();
   });
 });

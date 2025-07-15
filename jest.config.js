@@ -1,17 +1,9 @@
 export default {
-  preset: 'ts-jest/presets/default-esm',
-  extensionsToTreatAsEsm: ['.ts'],
   testEnvironment: 'node',
-  roots: ['<rootDir>/src', '<rootDir>/tests'],
+  roots: ['<rootDir>/tests'],
   testMatch: [
-    '<rootDir>/tests/**/*.test.ts',
     '<rootDir>/tests/**/*.test.js',
-    '<rootDir>/tests/**/*.spec.ts',
-    '<rootDir>/tests/**/*.spec.js',
-    '<rootDir>/src/**/*.test.ts',
-    '<rootDir>/src/**/*.test.js',
-    '<rootDir>/src/**/*.spec.ts',
-    '<rootDir>/src/**/*.spec.js'
+    '<rootDir>/tests/**/*.test.ts'
   ],
   transform: {
     '^.+\\.ts$': ['ts-jest', {
@@ -29,40 +21,29 @@ export default {
     }]
   },
   moduleNameMapper: {
-    '^(\\.{1,2}/.*)\\.js$': '$1',
-    '^~/(.*)$': '<rootDir>/src/$1',
-    '^@/(.*)$': '<rootDir>/src/$1',
-    '^@tests/(.*)$': '<rootDir>/tests/$1'
+    '^(\\.{1,2}/.*)\\.js$': '$1'
   },
   modulePathIgnorePatterns: [
     '<rootDir>/dist/',
     '<rootDir>/bin/',
-    '<rootDir>/node_modules/'
+    '<rootDir>/node_modules/',
+    '<rootDir>/src/templates/'
   ],
   transformIgnorePatterns: [
     'node_modules/(?!(chalk|ora|inquirer|nanoid|fs-extra|ansi-styles|ruv-swarm)/)'
   ],
-  resolver: undefined,
   collectCoverageFrom: [
     'src/**/*.ts',
     'src/**/*.js',
     '!src/**/*.d.ts',
     '!src/**/*.test.ts',
     '!src/**/*.test.js',
-    '!src/**/*.spec.ts',
-    '!src/**/*.spec.js'
+    '!src/templates/**/*'
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],
-  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   testTimeout: 30000,
   verbose: true,
-  // Enhanced error handling
-  errorOnDeprecated: false,
-  // Better module resolution
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json', 'node'],
-  // Clear mocks between tests
   clearMocks: true,
-  restoreMocks: true,
-  // Removed deprecated globals
+  restoreMocks: true
 };

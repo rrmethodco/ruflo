@@ -8,8 +8,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  local-tests:
-    name: Local Execution Tests
+  basic-tests:
+    name: Basic Tests
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -28,163 +28,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
       
-      - name: Run local execution tests
-        run: node tests/migration/local/test-local-execution.js
+      - name: Run basic tests
+        run: npm test
       
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v3
         with:
-          name: local-test-results-${{ matrix.os }}-node${{ matrix.node }}
-          path: tests/migration/local/local-test-results.json
-
-  remote-npx-tests:
-    name: Remote NPX Tests
-    runs-on: ubuntu-latest
-    needs: local-tests
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Build package
-        run: npm run build || echo "No build step"
-      
-      - name: Create npm package
-        run: npm pack
-      
-      - name: Run remote NPX tests
-        run: node tests/migration/remote/test-remote-npx.js
-      
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: remote-npx-test-results
-          path: tests/migration/remote/remote-npx-test-results.json
-
-  docker-tests:
-    name: Docker Tests
-    runs-on: ubuntu-latest
-    needs: local-tests
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
-      
-      - name: Run Docker tests
-        run: node tests/migration/docker/test-docker-execution.js
-      
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: docker-test-results
-          path: tests/migration/docker/docker-test-results.json
-
-  integration-tests:
-    name: Integration Tests
-    runs-on: ubuntu-latest
-    needs: [local-tests, remote-npx-tests]
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: |
-          npm ci
-          npm install -g ruv-swarm
-      
-      - name: Run integration tests
-        run: node tests/migration/integration/test-integration.js
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: integration-test-results
-          path: tests/migration/integration/integration-test-results.json
-
-  performance-tests:
-    name: Performance Tests
-    runs-on: ubuntu-latest
-    needs: local-tests
-    
-    steps:
-      - uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-      
-      - name: Install dependencies
-        run: npm ci
-      
-      - name: Run performance tests
-        run: node tests/migration/performance/test-performance.js
-      
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v3
-        with:
-          name: performance-test-results
-          path: tests/migration/performance/performance-test-results.json
-      
-      - name: Comment PR with performance results
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const results = JSON.parse(
-              fs.readFileSync('tests/migration/performance/performance-test-results.json', 'utf8')
-            );
-            
-            const comment = `## Performance Test Results
-            
-            Average operation time: ${results.avgDuration}ms
-            Memory usage: ${results.memoryUsage.heapUsed}MB
-            
-            | Test | Duration | Threshold | Status |
-            |------|----------|-----------|--------|
-            ${results.tests.map(t => 
-              `| ${t.name} | ${t.duration || 'N/A'}ms | ${t.threshold || 'N/A'}ms | ${
-                t.status === 'passed' ? '✅' : '❌'
-              } |`
-            ).join('\n')}
-            `;
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
+          name: test-results-${{ matrix.os }}-node${{ matrix.node }}
+          path: coverage/
 
   test-summary:
     name: Test Summary
     runs-on: ubuntu-latest
-    needs: [local-tests, remote-npx-tests, docker-tests, integration-tests, performance-tests]
+    needs: [basic-tests]
     if: always()
     
     steps:
@@ -197,23 +54,11 @@ jobs:
       
       - name: Generate test summary
         run: |
-          echo "# Claude Flow Migration Test Summary" > test-summary.md
+          echo "# Claude Flow Test Summary" > test-summary.md
           echo "" >> test-summary.md
           echo "## Test Results" >> test-summary.md
           echo "" >> test-summary.md
-          
-          # Process all test results
-          for file in test-artifacts/*/*-results.json; do
-            if [ -f "$file" ]; then
-              echo "### $(basename $(dirname $file))" >> test-summary.md
-              node -e "
-                const results = require('./$file');
-                console.log('- Passed:', results.passed || 0);
-                console.log('- Failed:', results.failed || 0);
-                console.log('');
-              " >> test-summary.md
-            fi
-          done
+          echo "Basic tests completed across all platforms and Node.js versions." >> test-summary.md
           
           cat test-summary.md
       

@@ -1,0 +1,828 @@
+[
+  {
+    "type": "system",
+    "subtype": "init",
+    "cwd": "/workspaces/claude-code-flow",
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7",
+    "tools": [
+      "Task",
+      "Bash",
+      "Glob",
+      "Grep",
+      "LS",
+      "ExitPlanMode",
+      "Read",
+      "Edit",
+      "MultiEdit",
+      "Write",
+      "NotebookRead",
+      "NotebookEdit",
+      "WebFetch",
+      "TodoWrite",
+      "WebSearch",
+      "mcp__ruv-swarm__swarm_init",
+      "mcp__ruv-swarm__swarm_status",
+      "mcp__ruv-swarm__swarm_monitor",
+      "mcp__ruv-swarm__agent_spawn",
+      "mcp__ruv-swarm__agent_list",
+      "mcp__ruv-swarm__agent_metrics",
+      "mcp__ruv-swarm__task_orchestrate",
+      "mcp__ruv-swarm__task_status",
+      "mcp__ruv-swarm__task_results",
+      "mcp__ruv-swarm__benchmark_run",
+      "mcp__ruv-swarm__features_detect",
+      "mcp__ruv-swarm__memory_usage",
+      "mcp__ruv-swarm__neural_status",
+      "mcp__ruv-swarm__neural_train",
+      "mcp__ruv-swarm__neural_patterns",
+      "mcp__ruv-swarm__daa_init",
+      "mcp__ruv-swarm__daa_agent_create",
+      "mcp__ruv-swarm__daa_agent_adapt",
+      "mcp__ruv-swarm__daa_workflow_create",
+      "mcp__ruv-swarm__daa_workflow_execute",
+      "mcp__ruv-swarm__daa_knowledge_share",
+      "mcp__ruv-swarm__daa_learning_status",
+      "mcp__ruv-swarm__daa_cognitive_pattern",
+      "mcp__ruv-swarm__daa_meta_learning",
+      "mcp__ruv-swarm__daa_performance_metrics",
+      "ListMcpResourcesTool",
+      "ReadMcpResourceTool",
+      "mcp__claude-flow__swarm_init",
+      "mcp__claude-flow__agent_spawn",
+      "mcp__claude-flow__task_orchestrate",
+      "mcp__claude-flow__swarm_status",
+      "mcp__claude-flow__neural_status",
+      "mcp__claude-flow__neural_train",
+      "mcp__claude-flow__neural_patterns",
+      "mcp__claude-flow__memory_usage",
+      "mcp__claude-flow__memory_search",
+      "mcp__claude-flow__performance_report",
+      "mcp__claude-flow__bottleneck_analyze",
+      "mcp__claude-flow__token_usage",
+      "mcp__claude-flow__github_repo_analyze",
+      "mcp__claude-flow__github_pr_manage",
+      "mcp__claude-flow__daa_agent_create",
+      "mcp__claude-flow__daa_capability_match",
+      "mcp__claude-flow__workflow_create",
+      "mcp__claude-flow__sparc_mode",
+      "mcp__claude-flow__agent_list",
+      "mcp__claude-flow__agent_metrics",
+      "mcp__claude-flow__swarm_monitor",
+      "mcp__claude-flow__topology_optimize",
+      "mcp__claude-flow__load_balance",
+      "mcp__claude-flow__coordination_sync",
+      "mcp__claude-flow__swarm_scale",
+      "mcp__claude-flow__swarm_destroy",
+      "mcp__claude-flow__neural_predict",
+      "mcp__claude-flow__model_load",
+      "mcp__claude-flow__model_save",
+      "mcp__claude-flow__wasm_optimize",
+      "mcp__claude-flow__inference_run",
+      "mcp__claude-flow__pattern_recognize",
+      "mcp__claude-flow__cognitive_analyze",
+      "mcp__claude-flow__learning_adapt",
+      "mcp__claude-flow__neural_compress",
+      "mcp__claude-flow__ensemble_create",
+      "mcp__claude-flow__transfer_learn",
+      "mcp__claude-flow__neural_explain",
+      "mcp__claude-flow__memory_persist",
+      "mcp__claude-flow__memory_namespace",
+      "mcp__claude-flow__memory_backup",
+      "mcp__claude-flow__memory_restore",
+      "mcp__claude-flow__memory_compress",
+      "mcp__claude-flow__memory_sync",
+      "mcp__claude-flow__cache_manage",
+      "mcp__claude-flow__state_snapshot",
+      "mcp__claude-flow__context_restore",
+      "mcp__claude-flow__memory_analytics",
+      "mcp__claude-flow__task_status",
+      "mcp__claude-flow__task_results",
+      "mcp__claude-flow__benchmark_run",
+      "mcp__claude-flow__metrics_collect",
+      "mcp__claude-flow__trend_analysis",
+      "mcp__claude-flow__cost_analysis",
+      "mcp__claude-flow__quality_assess",
+      "mcp__claude-flow__error_analysis",
+      "mcp__claude-flow__usage_stats",
+      "mcp__claude-flow__health_check",
+      "mcp__claude-flow__workflow_execute",
+      "mcp__claude-flow__workflow_export",
+      "mcp__claude-flow__automation_setup",
+      "mcp__claude-flow__pipeline_create",
+      "mcp__claude-flow__scheduler_manage",
+      "mcp__claude-flow__trigger_setup",
+      "mcp__claude-flow__workflow_template",
+      "mcp__claude-flow__batch_process",
+      "mcp__claude-flow__parallel_execute",
+      "mcp__claude-flow__github_issue_track",
+      "mcp__claude-flow__github_release_coord",
+      "mcp__claude-flow__github_workflow_auto",
+      "mcp__claude-flow__github_code_review",
+      "mcp__claude-flow__github_sync_coord",
+      "mcp__claude-flow__github_metrics",
+      "mcp__claude-flow__daa_resource_alloc",
+      "mcp__claude-flow__daa_lifecycle_manage",
+      "mcp__claude-flow__daa_communication",
+      "mcp__claude-flow__daa_consensus",
+      "mcp__claude-flow__daa_fault_tolerance",
+      "mcp__claude-flow__daa_optimization",
+      "mcp__claude-flow__terminal_execute",
+      "mcp__claude-flow__config_manage",
+      "mcp__claude-flow__features_detect",
+      "mcp__claude-flow__security_scan",
+      "mcp__claude-flow__backup_create",
+      "mcp__claude-flow__restore_system",
+      "mcp__claude-flow__log_analysis",
+      "mcp__claude-flow__diagnostic_run"
+    ],
+    "mcp_servers": [
+      {
+        "name": "ruv-swarm",
+        "status": "connected"
+      },
+      {
+        "name": "claude-flow",
+        "status": "connected"
+      }
+    ],
+    "model": "claude-opus-4-20250514",
+    "permissionMode": "bypassPermissions",
+    "apiKeySource": "none"
+  },
+  {
+    "type": "assistant",
+    "message": {
+      "id": "msg_012U3iGdMi1bNs9dERbBDHnk",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-opus-4-20250514",
+      "content": [
+        {
+          "type": "text",
+          "text": "I'll help you create a Streamlit app that can handle JSON streams for real-time analysis. Let me set up a complete example with both a data producer and a Streamlit consumer."
+        }
+      ],
+      "stop_reason": null,
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 36738,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 1,
+        "service_tier": "standard"
+      }
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "assistant",
+    "message": {
+      "id": "msg_012U3iGdMi1bNs9dERbBDHnk",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-opus-4-20250514",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01WLqvL8ZvwABkUfo92B5u5F",
+          "name": "TodoWrite",
+          "input": {
+            "todos": [
+              {
+                "id": "1",
+                "content": "Create Streamlit app structure for JSON stream analysis",
+                "status": "in_progress",
+                "priority": "high"
+              },
+              {
+                "id": "2",
+                "content": "Implement JSON stream producer/simulator",
+                "status": "pending",
+                "priority": "high"
+              },
+              {
+                "id": "3",
+                "content": "Create Streamlit app with real-time updates",
+                "status": "pending",
+                "priority": "high"
+              },
+              {
+                "id": "4",
+                "content": "Add data visualization components",
+                "status": "pending",
+                "priority": "high"
+              },
+              {
+                "id": "5",
+                "content": "Implement WebSocket/SSE for real-time streaming",
+                "status": "pending",
+                "priority": "medium"
+              },
+              {
+                "id": "6",
+                "content": "Add analysis metrics and statistics",
+                "status": "pending",
+                "priority": "medium"
+              },
+              {
+                "id": "7",
+                "content": "Create requirements.txt for dependencies",
+                "status": "pending",
+                "priority": "medium"
+              },
+              {
+                "id": "8",
+                "content": "Add README with usage instructions",
+                "status": "pending",
+                "priority": "low"
+              }
+            ]
+          }
+        }
+      ],
+      "stop_reason": null,
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 36738,
+        "cache_read_input_tokens": 0,
+        "output_tokens": 356,
+        "service_tier": "standard"
+      }
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "user",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_01WLqvL8ZvwABkUfo92B5u5F",
+          "type": "tool_result",
+          "content": "Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable"
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "assistant",
+    "message": {
+      "id": "msg_019XfJEJT9DpTPiReFdXoZkm",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-opus-4-20250514",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01FyDk9y4A3kGfWRSyLAC3T9",
+          "name": "Bash",
+          "input": {
+            "command": "mkdir -p streamlit/{data,utils}",
+            "description": "Create streamlit directory structure"
+          }
+        }
+      ],
+      "stop_reason": null,
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 7,
+        "cache_creation_input_tokens": 773,
+        "cache_read_input_tokens": 36738,
+        "output_tokens": 81,
+        "service_tier": "standard"
+      }
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "user",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_01FyDk9y4A3kGfWRSyLAC3T9",
+          "type": "tool_result",
+          "content": "",
+          "is_error": false
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "assistant",
+    "message": {
+      "id": "msg_01Hf7VsGFtfkBbcwptXyha8j",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-opus-4-20250514",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01PWMZNzoBDrw3U98p1EdLKu",
+          "name": "Write",
+          "input": {
+            "file_path": "/workspaces/claude-code-flow/streamlit/app.py",
+            "content": "import streamlit as st\nimport pandas as pd\nimport plotly.express as px\nimport plotly.graph_objects as go\nfrom plotly.subplots import make_subplots\nimport json\nimport time\nfrom datetime import datetime, timedelta\nimport asyncio\nimport aiohttp\nfrom collections import deque\nimport numpy as np\nfrom streamlit_autorefresh import st_autorefresh\n\n# Page config\nst.set_page_config(\n    page_title=\"Real-time JSON Stream Analysis\",\n    page_icon=\"📊\",\n    layout=\"wide\",\n    initial_sidebar_state=\"expanded\"\n)\n\n# Initialize session state\nif 'data_buffer' not in st.session_state:\n    st.session_state.data_buffer = deque(maxlen=1000)\nif 'metrics' not in st.session_state:\n    st.session_state.metrics = {\n        'total_messages': 0,\n        'error_count': 0,\n        'avg_value': 0,\n        'max_value': float('-inf'),\n        'min_value': float('inf')\n    }\nif 'start_time' not in st.session_state:\n    st.session_state.start_time = datetime.now()\n\n# Sidebar configuration\nst.sidebar.title(\"⚙️ Configuration\")\n\n# Data source selection\ndata_source = st.sidebar.selectbox(\n    \"Data Source\",\n    [\"Simulated Stream\", \"HTTP Endpoint\", \"WebSocket\", \"File Upload\"]\n)\n\n# Refresh settings\nrefresh_interval = st.sidebar.slider(\n    \"Refresh Interval (seconds)\",\n    min_value=0.5,\n    max_value=10.0,\n    value=1.0,\n    step=0.5\n)\n\n# Auto-refresh\ncount = st_autorefresh(interval=int(refresh_interval * 1000), limit=None, key=\"data_refresh\")\n\n# Analysis settings\nst.sidebar.subheader(\"📈 Analysis Settings\")\nwindow_size = st.sidebar.slider(\"Moving Average Window\", 5, 50, 20)\nshow_outliers = st.sidebar.checkbox(\"Highlight Outliers\", True)\noutlier_threshold = st.sidebar.slider(\"Outlier Threshold (σ)\", 1.0, 4.0, 2.0, 0.5)\n\n# Main title\nst.title(\"🔄 Real-time JSON Stream Analysis\")\nst.markdown(\"---\")\n\n# Function to process JSON data\ndef process_json_data(json_str):\n    try:\n        data = json.loads(json_str)\n        # Add timestamp if not present\n        if 'timestamp' not in data:\n            data['timestamp'] = datetime.now().isoformat()\n        \n        # Update metrics\n        if 'value' in data:\n            st.session_state.metrics['total_messages'] += 1\n            value = float(data['value'])\n            \n            # Update min/max\n            st.session_state.metrics['max_value'] = max(\n                st.session_state.metrics['max_value'], value\n            )\n            st.session_state.metrics['min_value'] = min(\n                st.session_state.metrics['min_value'], value\n            )\n            \n            # Update average\n            current_avg = st.session_state.metrics['avg_value']\n            count = st.session_state.metrics['total_messages']\n            st.session_state.metrics['avg_value'] = (\n                (current_avg * (count - 1) + value) / count\n            )\n        \n        st.session_state.data_buffer.append(data)\n        return data\n    except json.JSONDecodeError:\n        st.session_state.metrics['error_count'] += 1\n        return None\n\n# Simulated data generator\ndef generate_simulated_data():\n    base_value = 50\n    noise = np.random.normal(0, 10)\n    trend = np.sin(time.time() / 10) * 20\n    value = base_value + trend + noise\n    \n    # Occasionally add outliers\n    if np.random.random() < 0.05:\n        value += np.random.choice([-1, 1]) * np.random.uniform(30, 50)\n    \n    data = {\n        \"timestamp\": datetime.now().isoformat(),\n        \"value\": round(value, 2),\n        \"category\": np.random.choice([\"A\", \"B\", \"C\"]),\n        \"status\": \"normal\" if abs(value - base_value) < 30 else \"anomaly\"\n    }\n    \n    return json.dumps(data)\n\n# Data collection based on source\nif data_source == \"Simulated Stream\":\n    # Generate new data point\n    new_data = generate_simulated_data()\n    process_json_data(new_data)\n\nelif data_source == \"File Upload\":\n    uploaded_file = st.sidebar.file_uploader(\"Upload JSON Lines file\", type=['jsonl', 'json'])\n    if uploaded_file:\n        for line in uploaded_file:\n            process_json_data(line.decode('utf-8'))\n\n# Metrics row\ncol1, col2, col3, col4, col5 = st.columns(5)\n\nwith col1:\n    st.metric(\n        \"Total Messages\",\n        f\"{st.session_state.metrics['total_messages']:,}\",\n        delta=f\"+{len(st.session_state.data_buffer)} in buffer\"\n    )\n\nwith col2:\n    st.metric(\n        \"Average Value\",\n        f\"{st.session_state.metrics['avg_value']:.2f}\",\n        delta=f\"{st.session_state.metrics['avg_value'] - 50:.2f}\"\n    )\n\nwith col3:\n    st.metric(\n        \"Max Value\",\n        f\"{st.session_state.metrics['max_value']:.2f}\"\n    )\n\nwith col4:\n    st.metric(\n        \"Min Value\",\n        f\"{st.session_state.metrics['min_value']:.2f}\"\n    )\n\nwith col5:\n    runtime = datetime.now() - st.session_state.start_time\n    st.metric(\n        \"Runtime\",\n        f\"{runtime.total_seconds():.0f}s\",\n        delta=f\"{st.session_state.metrics['error_count']} errors\"\n    )\n\n# Convert buffer to DataFrame for analysis\nif st.session_state.data_buffer:\n    df = pd.DataFrame(list(st.session_state.data_buffer))\n    \n    # Ensure timestamp is datetime\n    if 'timestamp' in df.columns:\n        df['timestamp'] = pd.to_datetime(df['timestamp'])\n    \n    # Create visualizations\n    st.markdown(\"---\")\n    \n    # Time series plot\n    if 'value' in df.columns and 'timestamp' in df.columns:\n        st.subheader(\"📊 Real-time Value Stream\")\n        \n        # Calculate moving average\n        if len(df) >= window_size:\n            df['moving_avg'] = df['value'].rolling(window=window_size).mean()\n        \n        # Detect outliers\n        if show_outliers and len(df) > 10:\n            mean = df['value'].mean()\n            std = df['value'].std()\n            df['is_outlier'] = np.abs(df['value'] - mean) > (outlier_threshold * std)\n        \n        # Create time series plot\n        fig = go.Figure()\n        \n        # Main data line\n        fig.add_trace(go.Scatter(\n            x=df['timestamp'],\n            y=df['value'],\n            mode='lines+markers',\n            name='Value',\n            line=dict(color='#1f77b4', width=2),\n            marker=dict(size=4)\n        ))\n        \n        # Moving average\n        if 'moving_avg' in df.columns:\n            fig.add_trace(go.Scatter(\n                x=df['timestamp'],\n                y=df['moving_avg'],\n                mode='lines',\n                name=f'{window_size}-point Moving Avg',\n                line=dict(color='#ff7f0e', width=2, dash='dash')\n            ))\n        \n        # Highlight outliers\n        if show_outliers and 'is_outlier' in df.columns:\n            outliers = df[df['is_outlier']]\n            if not outliers.empty:\n                fig.add_trace(go.Scatter(\n                    x=outliers['timestamp'],\n                    y=outliers['value'],\n                    mode='markers',\n                    name='Outliers',\n                    marker=dict(color='red', size=10, symbol='x')\n                ))\n        \n        fig.update_layout(\n            height=400,\n            showlegend=True,\n            hovermode='x unified',\n            xaxis_title=\"Time\",\n            yaxis_title=\"Value\"\n        )\n        \n        st.plotly_chart(fig, use_container_width=True)\n    \n    # Category distribution\n    col1, col2 = st.columns(2)\n    \n    with col1:\n        if 'category' in df.columns:\n            st.subheader(\"📊 Category Distribution\")\n            category_counts = df['category'].value_counts()\n            \n            fig_pie = px.pie(\n                values=category_counts.values,\n                names=category_counts.index,\n                title=\"Message Distribution by Category\"\n            )\n            st.plotly_chart(fig_pie, use_container_width=True)\n    \n    with col2:\n        if 'status' in df.columns:\n            st.subheader(\"🚦 Status Overview\")\n            status_counts = df['status'].value_counts()\n            \n            fig_bar = px.bar(\n                x=status_counts.index,\n                y=status_counts.values,\n                title=\"Status Distribution\",\n                color=status_counts.index,\n                color_discrete_map={'normal': 'green', 'anomaly': 'red'}\n            )\n            st.plotly_chart(fig_bar, use_container_width=True)\n    \n    # Recent data table\n    st.subheader(\"📋 Recent Data\")\n    \n    # Show last N records\n    display_count = st.slider(\"Number of recent records to display\", 5, 50, 10)\n    recent_data = df.tail(display_count).sort_values('timestamp', ascending=False)\n    \n    # Format the dataframe for display\n    display_df = recent_data.copy()\n    if 'timestamp' in display_df.columns:\n        display_df['timestamp'] = display_df['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')\n    \n    st.dataframe(\n        display_df,\n        use_container_width=True,\n        hide_index=True\n    )\n    \n    # Statistical summary\n    if st.checkbox(\"Show Statistical Summary\"):\n        st.subheader(\"📊 Statistical Summary\")\n        if 'value' in df.columns:\n            summary_stats = df['value'].describe()\n            st.dataframe(summary_stats)\n    \n    # Export data\n    st.markdown(\"---\")\n    st.subheader(\"💾 Export Data\")\n    \n    col1, col2, col3 = st.columns(3)\n    \n    with col1:\n        csv = df.to_csv(index=False)\n        st.download_button(\n            label=\"Download as CSV\",\n            data=csv,\n            file_name=f\"stream_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv\",\n            mime=\"text/csv\"\n        )\n    \n    with col2:\n        json_data = df.to_json(orient='records', date_format='iso')\n        st.download_button(\n            label=\"Download as JSON\",\n            data=json_data,\n            file_name=f\"stream_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json\",\n            mime=\"application/json\"\n        )\n    \n    with col3:\n        if st.button(\"Clear Buffer\"):\n            st.session_state.data_buffer.clear()\n            st.session_state.metrics = {\n                'total_messages': 0,\n                'error_count': 0,\n                'avg_value': 0,\n                'max_value': float('-inf'),\n                'min_value': float('inf')\n            }\n            st.rerun()\n\nelse:\n    st.info(\"Waiting for data... The stream will start populating shortly.\")\n\n# Footer\nst.markdown(\"---\")\nst.caption(f\"Last refresh: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\")"
+          }
+        }
+      ],
+      "stop_reason": null,
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 8,
+        "cache_creation_input_tokens": 106,
+        "cache_read_input_tokens": 37511,
+        "output_tokens": 26,
+        "service_tier": "standard"
+      }
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "user",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_01PWMZNzoBDrw3U98p1EdLKu",
+          "type": "tool_result",
+          "content": "File created successfully at: /workspaces/claude-code-flow/streamlit/app.py"
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "assistant",
+    "message": {
+      "id": "msg_01DVxsvYj6GzANNtcViun4CK",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-opus-4-20250514",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01AsnV6m4Lzu4ZCAj372ouWt",
+          "name": "Write",
+          "input": {
+            "file_path": "/workspaces/claude-code-flow/streamlit/json_producer.py",
+            "content": "#!/usr/bin/env python3\n\"\"\"\nJSON Stream Producer - Generates sample JSON data streams for testing\n\"\"\"\n\nimport json\nimport time\nimport random\nimport asyncio\nimport websockets\nfrom datetime import datetime\nimport numpy as np\nimport argparse\nfrom aiohttp import web\nimport threading\nimport queue\n\nclass JSONStreamProducer:\n    \"\"\"Produces JSON streams with various patterns\"\"\"\n    \n    def __init__(self, pattern='sine', base_value=50, noise_level=10):\n        self.pattern = pattern\n        self.base_value = base_value\n        self.noise_level = noise_level\n        self.start_time = time.time()\n        self.message_count = 0\n        \n    def generate_data_point(self):\n        \"\"\"Generate a single data point based on pattern\"\"\"\n        self.message_count += 1\n        elapsed = time.time() - self.start_time\n        \n        # Base value calculation based on pattern\n        if self.pattern == 'sine':\n            value = self.base_value + np.sin(elapsed / 10) * 20\n        elif self.pattern == 'random':\n            value = self.base_value + random.uniform(-20, 20)\n        elif self.pattern == 'trending':\n            value = self.base_value + (elapsed / 10) + random.uniform(-5, 5)\n        elif self.pattern == 'sawtooth':\n            value = self.base_value + (elapsed % 20) * 2 - 20\n        else:\n            value = self.base_value\n        \n        # Add noise\n        value += np.random.normal(0, self.noise_level)\n        \n        # Occasionally add anomalies\n        if random.random() < 0.05:  # 5% chance\n            value += random.choice([-1, 1]) * random.uniform(30, 60)\n            status = \"anomaly\"\n        else:\n            status = \"normal\"\n        \n        # Create data point\n        data = {\n            \"id\": self.message_count,\n            \"timestamp\": datetime.now().isoformat(),\n            \"value\": round(value, 2),\n            \"category\": random.choice([\"A\", \"B\", \"C\"]),\n            \"status\": status,\n            \"metadata\": {\n                \"pattern\": self.pattern,\n                \"elapsed_seconds\": round(elapsed, 2),\n                \"source\": \"json_producer\"\n            }\n        }\n        \n        return data\n\nclass StreamServers:\n    \"\"\"Various server implementations for streaming JSON\"\"\"\n    \n    def __init__(self, producer):\n        self.producer = producer\n        self.data_queue = queue.Queue()\n        \n    async def websocket_handler(self, websocket, path):\n        \"\"\"WebSocket server handler\"\"\"\n        print(f\"WebSocket client connected from {websocket.remote_address}\")\n        try:\n            while True:\n                data = self.producer.generate_data_point()\n                await websocket.send(json.dumps(data))\n                await asyncio.sleep(1)\n        except websockets.exceptions.ConnectionClosed:\n            print(\"WebSocket client disconnected\")\n    \n    async def sse_handler(self, request):\n        \"\"\"Server-Sent Events handler\"\"\"\n        response = web.StreamResponse()\n        response.headers['Content-Type'] = 'text/event-stream'\n        response.headers['Cache-Control'] = 'no-cache'\n        response.headers['Access-Control-Allow-Origin'] = '*'\n        await response.prepare(request)\n        \n        try:\n            while True:\n                data = self.producer.generate_data_point()\n                await response.write(f\"data: {json.dumps(data)}\\n\\n\".encode('utf-8'))\n                await asyncio.sleep(1)\n        except ConnectionResetError:\n            pass\n        \n        return response\n    \n    async def http_stream_handler(self, request):\n        \"\"\"HTTP streaming endpoint\"\"\"\n        response = web.StreamResponse()\n        response.headers['Content-Type'] = 'application/x-ndjson'\n        response.headers['Access-Control-Allow-Origin'] = '*'\n        await response.prepare(request)\n        \n        try:\n            for _ in range(100):  # Send 100 records\n                data = self.producer.generate_data_point()\n                await response.write(f\"{json.dumps(data)}\\n\".encode('utf-8'))\n                await asyncio.sleep(0.1)\n        except ConnectionResetError:\n            pass\n        \n        return response\n    \n    def start_websocket_server(self, host='localhost', port=8765):\n        \"\"\"Start WebSocket server\"\"\"\n        print(f\"Starting WebSocket server on ws://{host}:{port}\")\n        start_server = websockets.serve(self.websocket_handler, host, port)\n        asyncio.get_event_loop().run_until_complete(start_server)\n        asyncio.get_event_loop().run_forever()\n    \n    def start_http_server(self, host='localhost', port=8080):\n        \"\"\"Start HTTP server with SSE and streaming endpoints\"\"\"\n        app = web.Application()\n        app.router.add_get('/sse', self.sse_handler)\n        app.router.add_get('/stream', self.http_stream_handler)\n        \n        # Add a simple status endpoint\n        async def status(request):\n            return web.json_response({\n                \"status\": \"running\",\n                \"message_count\": self.producer.message_count,\n                \"pattern\": self.producer.pattern\n            })\n        \n        app.router.add_get('/status', status)\n        \n        print(f\"Starting HTTP server on http://{host}:{port}\")\n        print(f\"  SSE endpoint: http://{host}:{port}/sse\")\n        print(f\"  Stream endpoint: http://{host}:{port}/stream\")\n        print(f\"  Status endpoint: http://{host}:{port}/status\")\n        \n        web.run_app(app, host=host, port=port)\n    \n    def write_to_file(self, filename, duration=60):\n        \"\"\"Write JSON stream to file\"\"\"\n        print(f\"Writing JSON stream to {filename} for {duration} seconds...\")\n        \n        with open(filename, 'w') as f:\n            start_time = time.time()\n            while time.time() - start_time < duration:\n                data = self.producer.generate_data_point()\n                f.write(json.dumps(data) + '\\n')\n                f.flush()\n                time.sleep(1)\n        \n        print(f\"Finished writing to {filename}\")\n    \n    def console_output(self, duration=None):\n        \"\"\"Output JSON to console\"\"\"\n        print(\"Streaming JSON to console... (Press Ctrl+C to stop)\")\n        \n        try:\n            start_time = time.time()\n            while True:\n                if duration and time.time() - start_time > duration:\n                    break\n                \n                data = self.producer.generate_data_point()\n                print(json.dumps(data))\n                time.sleep(1)\n        except KeyboardInterrupt:\n            print(\"\\nStream stopped.\")\n\ndef main():\n    parser = argparse.ArgumentParser(description='JSON Stream Producer')\n    parser.add_argument('mode', choices=['console', 'file', 'websocket', 'http'],\n                        help='Output mode for the JSON stream')\n    parser.add_argument('--pattern', choices=['sine', 'random', 'trending', 'sawtooth'],\n                        default='sine', help='Data generation pattern')\n    parser.add_argument('--base-value', type=float, default=50,\n                        help='Base value for data generation')\n    parser.add_argument('--noise-level', type=float, default=10,\n                        help='Noise level for data generation')\n    parser.add_argument('--host', default='localhost',\n                        help='Host for server modes')\n    parser.add_argument('--port', type=int, default=8080,\n                        help='Port for server modes')\n    parser.add_argument('--file', default='stream.jsonl',\n                        help='Output file for file mode')\n    parser.add_argument('--duration', type=int, default=60,\n                        help='Duration in seconds for file/console mode')\n    \n    args = parser.parse_args()\n    \n    # Create producer\n    producer = JSONStreamProducer(\n        pattern=args.pattern,\n        base_value=args.base_value,\n        noise_level=args.noise_level\n    )\n    \n    # Create server\n    servers = StreamServers(producer)\n    \n    # Start appropriate mode\n    if args.mode == 'console':\n        servers.console_output(args.duration)\n    elif args.mode == 'file':\n        servers.write_to_file(args.file, args.duration)\n    elif args.mode == 'websocket':\n        servers.start_websocket_server(args.host, args.port or 8765)\n    elif args.mode == 'http':\n        servers.start_http_server(args.host, args.port)\n\nif __name__ == '__main__':\n    main()"
+          }
+        }
+      ],
+      "stop_reason": "tool_use",
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 7,
+        "cache_creation_input_tokens": 3275,
+        "cache_read_input_tokens": 37617,
+        "output_tokens": 2343,
+        "service_tier": "standard"
+      }
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "user",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_01AsnV6m4Lzu4ZCAj372ouWt",
+          "type": "tool_result",
+          "content": "File created successfully at: /workspaces/claude-code-flow/streamlit/json_producer.py"
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "assistant",
+    "message": {
+      "id": "msg_01EADRet75CMSQ46CMc5s6hZ",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-opus-4-20250514",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01TQipPsBLR4VHYHJVYeXJCu",
+          "name": "Write",
+          "input": {
+            "file_path": "/workspaces/claude-code-flow/streamlit/websocket_client.py",
+            "content": "import streamlit as st\nimport asyncio\nimport websockets\nimport json\nimport pandas as pd\nfrom datetime import datetime\nfrom collections import deque\nimport threading\nimport queue\n\n# WebSocket client for Streamlit\nclass WebSocketClient:\n    def __init__(self, url, data_queue):\n        self.url = url\n        self.data_queue = data_queue\n        self.running = False\n        self.thread = None\n        \n    def start(self):\n        \"\"\"Start the WebSocket client in a separate thread\"\"\"\n        self.running = True\n        self.thread = threading.Thread(target=self._run)\n        self.thread.daemon = True\n        self.thread.start()\n        \n    def stop(self):\n        \"\"\"Stop the WebSocket client\"\"\"\n        self.running = False\n        if self.thread:\n            self.thread.join()\n    \n    def _run(self):\n        \"\"\"Run the async event loop\"\"\"\n        loop = asyncio.new_event_loop()\n        asyncio.set_event_loop(loop)\n        loop.run_until_complete(self._connect())\n        \n    async def _connect(self):\n        \"\"\"Connect to WebSocket and receive data\"\"\"\n        try:\n            async with websockets.connect(self.url) as websocket:\n                st.success(f\"Connected to WebSocket: {self.url}\")\n                while self.running:\n                    try:\n                        message = await asyncio.wait_for(websocket.recv(), timeout=1.0)\n                        data = json.loads(message)\n                        self.data_queue.put(data)\n                    except asyncio.TimeoutError:\n                        continue\n                    except json.JSONDecodeError:\n                        st.error(f\"Failed to parse JSON: {message}\")\n        except Exception as e:\n            st.error(f\"WebSocket connection error: {e}\")\n\n# Streamlit app for WebSocket streaming\ndef websocket_app():\n    st.title(\"🔌 WebSocket JSON Stream Client\")\n    \n    # Configuration\n    col1, col2 = st.columns([3, 1])\n    with col1:\n        ws_url = st.text_input(\n            \"WebSocket URL\",\n            value=\"ws://localhost:8765\",\n            help=\"Enter the WebSocket server URL\"\n        )\n    \n    with col2:\n        if 'ws_client' not in st.session_state:\n            st.session_state.ws_client = None\n            st.session_state.data_queue = queue.Queue()\n            st.session_state.data_buffer = deque(maxlen=100)\n        \n        if st.button(\"Connect\" if not st.session_state.ws_client else \"Disconnect\"):\n            if not st.session_state.ws_client:\n                # Start WebSocket client\n                client = WebSocketClient(ws_url, st.session_state.data_queue)\n                client.start()\n                st.session_state.ws_client = client\n            else:\n                # Stop WebSocket client\n                st.session_state.ws_client.stop()\n                st.session_state.ws_client = None\n    \n    # Display connection status\n    if st.session_state.ws_client:\n        st.success(\"🟢 Connected\")\n    else:\n        st.info(\"🔴 Disconnected\")\n    \n    # Process incoming data\n    if st.session_state.ws_client:\n        # Get all available data from queue\n        new_data = []\n        while not st.session_state.data_queue.empty():\n            try:\n                data = st.session_state.data_queue.get_nowait()\n                new_data.append(data)\n                st.session_state.data_buffer.append(data)\n            except queue.Empty:\n                break\n        \n        # Display data\n        if st.session_state.data_buffer:\n            df = pd.DataFrame(list(st.session_state.data_buffer))\n            \n            # Metrics\n            col1, col2, col3 = st.columns(3)\n            with col1:\n                st.metric(\"Messages Received\", len(st.session_state.data_buffer))\n            with col2:\n                if 'value' in df.columns:\n                    st.metric(\"Latest Value\", f\"{df['value'].iloc[-1]:.2f}\")\n            with col3:\n                if 'timestamp' in df.columns:\n                    st.metric(\"Last Update\", df['timestamp'].iloc[-1][-8:])\n            \n            # Chart\n            if 'value' in df.columns and 'timestamp' in df.columns:\n                st.line_chart(df.set_index('timestamp')['value'])\n            \n            # Recent data\n            st.subheader(\"Recent Data\")\n            st.dataframe(df.tail(10), use_container_width=True)\n\nif __name__ == \"__main__\":\n    websocket_app()"
+          }
+        }
+      ],
+      "stop_reason": null,
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 7,
+        "cache_creation_input_tokens": 2379,
+        "cache_read_input_tokens": 40892,
+        "output_tokens": 37,
+        "service_tier": "standard"
+      }
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "user",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_01TQipPsBLR4VHYHJVYeXJCu",
+          "type": "tool_result",
+          "content": "File created successfully at: /workspaces/claude-code-flow/streamlit/websocket_client.py"
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "assistant",
+    "message": {
+      "id": "msg_01TZPkoF6BHrm1sqQre9czEh",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-opus-4-20250514",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01EzuEPvhFebk8KvuxLkogYr",
+          "name": "Write",
+          "input": {
+            "file_path": "/workspaces/claude-code-flow/streamlit/advanced_analysis.py",
+            "content": "import streamlit as st\nimport pandas as pd\nimport numpy as np\nimport plotly.express as px\nimport plotly.graph_objects as go\nfrom plotly.subplots import make_subplots\nimport json\nfrom datetime import datetime, timedelta\nfrom scipy import stats\nfrom sklearn.preprocessing import StandardScaler\nfrom sklearn.decomposition import PCA\nfrom sklearn.cluster import DBSCAN\nimport seaborn as sns\nimport matplotlib.pyplot as plt\n\n# Advanced analysis functions\nclass StreamAnalyzer:\n    \"\"\"Advanced analysis for JSON streams\"\"\"\n    \n    def __init__(self):\n        self.scaler = StandardScaler()\n        \n    def detect_anomalies_zscore(self, df, column='value', threshold=3):\n        \"\"\"Detect anomalies using Z-score method\"\"\"\n        if column not in df.columns:\n            return df\n        \n        z_scores = np.abs(stats.zscore(df[column]))\n        df['anomaly_zscore'] = z_scores > threshold\n        df['z_score'] = z_scores\n        return df\n    \n    def detect_anomalies_iqr(self, df, column='value'):\n        \"\"\"Detect anomalies using Interquartile Range method\"\"\"\n        if column not in df.columns:\n            return df\n        \n        Q1 = df[column].quantile(0.25)\n        Q3 = df[column].quantile(0.75)\n        IQR = Q3 - Q1\n        \n        lower_bound = Q1 - 1.5 * IQR\n        upper_bound = Q3 + 1.5 * IQR\n        \n        df['anomaly_iqr'] = (df[column] < lower_bound) | (df[column] > upper_bound)\n        return df\n    \n    def detect_anomalies_isolation_forest(self, df, columns=['value']):\n        \"\"\"Detect anomalies using Isolation Forest\"\"\"\n        from sklearn.ensemble import IsolationForest\n        \n        valid_columns = [col for col in columns if col in df.columns]\n        if not valid_columns:\n            return df\n        \n        X = df[valid_columns].values\n        iso_forest = IsolationForest(contamination=0.1, random_state=42)\n        df['anomaly_isolation'] = iso_forest.fit_predict(X) == -1\n        return df\n    \n    def perform_clustering(self, df, columns=['value'], n_clusters='auto'):\n        \"\"\"Perform DBSCAN clustering on the data\"\"\"\n        valid_columns = [col for col in columns if col in df.columns]\n        if not valid_columns:\n            return df\n        \n        X = df[valid_columns].values\n        X_scaled = self.scaler.fit_transform(X)\n        \n        if n_clusters == 'auto':\n            dbscan = DBSCAN(eps=0.3, min_samples=5)\n        else:\n            dbscan = DBSCAN(eps=0.3, min_samples=n_clusters)\n        \n        df['cluster'] = dbscan.fit_predict(X_scaled)\n        return df\n    \n    def calculate_rolling_statistics(self, df, column='value', windows=[5, 10, 20]):\n        \"\"\"Calculate various rolling statistics\"\"\"\n        if column not in df.columns:\n            return df\n        \n        for window in windows:\n            if len(df) >= window:\n                df[f'rolling_mean_{window}'] = df[column].rolling(window=window).mean()\n                df[f'rolling_std_{window}'] = df[column].rolling(window=window).std()\n                df[f'rolling_min_{window}'] = df[column].rolling(window=window).min()\n                df[f'rolling_max_{window}'] = df[column].rolling(window=window).max()\n        \n        return df\n    \n    def detect_trends(self, df, column='value'):\n        \"\"\"Detect trends in the data\"\"\"\n        if column not in df.columns or len(df) < 10:\n            return df\n        \n        # Linear regression for trend\n        X = np.arange(len(df)).reshape(-1, 1)\n        y = df[column].values\n        \n        from sklearn.linear_model import LinearRegression\n        model = LinearRegression()\n        model.fit(X, y)\n        \n        df['trend_line'] = model.predict(X)\n        df['trend_slope'] = model.coef_[0]\n        df['detrended'] = y - df['trend_line']\n        \n        return df\n    \n    def calculate_seasonality(self, df, column='value', period=24):\n        \"\"\"Detect seasonality in the data\"\"\"\n        if column not in df.columns or len(df) < period * 2:\n            return df\n        \n        # Simple seasonality detection using FFT\n        from scipy.fft import fft, fftfreq\n        \n        y = df[column].values\n        N = len(y)\n        \n        yf = fft(y)\n        xf = fftfreq(N, 1)[:N//2]\n        \n        # Find dominant frequencies\n        power = 2.0/N * np.abs(yf[0:N//2])\n        dominant_freq_idx = np.argmax(power[1:]) + 1\n        dominant_period = 1 / xf[dominant_freq_idx] if xf[dominant_freq_idx] != 0 else period\n        \n        df['seasonality_period'] = dominant_period\n        \n        return df\n\n# Streamlit app\ndef main():\n    st.set_page_config(\n        page_title=\"Advanced JSON Stream Analysis\",\n        page_icon=\"🔬\",\n        layout=\"wide\"\n    )\n    \n    st.title(\"🔬 Advanced JSON Stream Analysis\")\n    st.markdown(\"---\")\n    \n    # File upload\n    uploaded_file = st.file_uploader(\n        \"Upload JSON Lines file\",\n        type=['jsonl', 'json'],\n        help=\"Upload a file containing JSON objects, one per line\"\n    )\n    \n    if uploaded_file is not None:\n        # Load data\n        data = []\n        for line in uploaded_file:\n            try:\n                data.append(json.loads(line))\n            except:\n                continue\n        \n        if data:\n            df = pd.DataFrame(data)\n            \n            # Convert timestamp if exists\n            if 'timestamp' in df.columns:\n                df['timestamp'] = pd.to_datetime(df['timestamp'])\n                df = df.sort_values('timestamp')\n            \n            # Initialize analyzer\n            analyzer = StreamAnalyzer()\n            \n            # Sidebar for analysis options\n            st.sidebar.title(\"🎛️ Analysis Options\")\n            \n            # Select numeric columns\n            numeric_columns = df.select_dtypes(include=[np.number]).columns.tolist()\n            if numeric_columns:\n                primary_column = st.sidebar.selectbox(\n                    \"Primary Analysis Column\",\n                    numeric_columns,\n                    index=0 if 'value' not in numeric_columns else numeric_columns.index('value')\n                )\n            else:\n                st.error(\"No numeric columns found in the data!\")\n                return\n            \n            # Analysis options\n            st.sidebar.subheader(\"Anomaly Detection\")\n            use_zscore = st.sidebar.checkbox(\"Z-Score Method\", True)\n            zscore_threshold = st.sidebar.slider(\"Z-Score Threshold\", 2.0, 4.0, 3.0, 0.5)\n            use_iqr = st.sidebar.checkbox(\"IQR Method\", True)\n            use_isolation = st.sidebar.checkbox(\"Isolation Forest\", False)\n            \n            st.sidebar.subheader(\"Statistical Analysis\")\n            use_rolling = st.sidebar.checkbox(\"Rolling Statistics\", True)\n            use_trends = st.sidebar.checkbox(\"Trend Detection\", True)\n            use_clustering = st.sidebar.checkbox(\"Clustering\", False)\n            use_seasonality = st.sidebar.checkbox(\"Seasonality Analysis\", False)\n            \n            # Perform analysis\n            with st.spinner(\"Analyzing data...\"):\n                # Anomaly detection\n                if use_zscore:\n                    df = analyzer.detect_anomalies_zscore(df, primary_column, zscore_threshold)\n                if use_iqr:\n                    df = analyzer.detect_anomalies_iqr(df, primary_column)\n                if use_isolation:\n                    df = analyzer.detect_anomalies_isolation_forest(df, [primary_column])\n                \n                # Statistical analysis\n                if use_rolling:\n                    df = analyzer.calculate_rolling_statistics(df, primary_column)\n                if use_trends:\n                    df = analyzer.detect_trends(df, primary_column)\n                if use_clustering and len(numeric_columns) > 0:\n                    df = analyzer.perform_clustering(df, numeric_columns[:3])\n                if use_seasonality:\n                    df = analyzer.calculate_seasonality(df, primary_column)\n            \n            # Display results\n            tab1, tab2, tab3, tab4, tab5 = st.tabs([\n                \"📊 Overview\", \"🚨 Anomalies\", \"📈 Trends\", \"🎯 Clustering\", \"📋 Raw Data\"\n            ])\n            \n            with tab1:\n                # Summary statistics\n                col1, col2, col3, col4 = st.columns(4)\n                \n                with col1:\n                    st.metric(\"Total Records\", len(df))\n                with col2:\n                    st.metric(\"Mean Value\", f\"{df[primary_column].mean():.2f}\")\n                with col3:\n                    st.metric(\"Std Dev\", f\"{df[primary_column].std():.2f}\")\n                with col4:\n                    anomaly_count = 0\n                    if 'anomaly_zscore' in df.columns:\n                        anomaly_count = df['anomaly_zscore'].sum()\n                    st.metric(\"Anomalies\", anomaly_count)\n                \n                # Time series plot\n                if 'timestamp' in df.columns:\n                    fig = make_subplots(\n                        rows=2, cols=1,\n                        shared_xaxes=True,\n                        vertical_spacing=0.05,\n                        row_heights=[0.7, 0.3]\n                    )\n                    \n                    # Main plot\n                    fig.add_trace(\n                        go.Scatter(\n                            x=df['timestamp'],\n                            y=df[primary_column],\n                            mode='lines',\n                            name='Value',\n                            line=dict(color='blue', width=1)\n                        ),\n                        row=1, col=1\n                    )\n                    \n                    # Add rolling averages\n                    if use_rolling:\n                        for window in [5, 10, 20]:\n                            col_name = f'rolling_mean_{window}'\n                            if col_name in df.columns:\n                                fig.add_trace(\n                                    go.Scatter(\n                                        x=df['timestamp'],\n                                        y=df[col_name],\n                                        mode='lines',\n                                        name=f'{window}-MA',\n                                        line=dict(width=2)\n                                    ),\n                                    row=1, col=1\n                                )\n                    \n                    # Add trend line\n                    if 'trend_line' in df.columns:\n                        fig.add_trace(\n                            go.Scatter(\n                                x=df['timestamp'],\n                                y=df['trend_line'],\n                                mode='lines',\n                                name='Trend',\n                                line=dict(color='red', width=2, dash='dash')\n                            ),\n                            row=1, col=1\n                        )\n                    \n                    # Volume plot\n                    if 'category' in df.columns:\n                        category_counts = df.groupby([pd.Grouper(key='timestamp', freq='1min'), 'category']).size().unstack(fill_value=0)\n                        for cat in category_counts.columns:\n                            fig.add_trace(\n                                go.Bar(\n                                    x=category_counts.index,\n                                    y=category_counts[cat],\n                                    name=f'Category {cat}'\n                                ),\n                                row=2, col=1\n                            )\n                    \n                    fig.update_layout(\n                        height=600,\n                        showlegend=True,\n                        hovermode='x unified'\n                    )\n                    fig.update_xaxes(title_text=\"Time\", row=2, col=1)\n                    fig.update_yaxes(title_text=\"Value\", row=1, col=1)\n                    fig.update_yaxes(title_text=\"Count\", row=2, col=1)\n                    \n                    st.plotly_chart(fig, use_container_width=True)\n                \n                # Distribution plot\n                col1, col2 = st.columns(2)\n                \n                with col1:\n                    fig_hist = px.histogram(\n                        df, x=primary_column, nbins=50,\n                        title=\"Value Distribution\"\n                    )\n                    st.plotly_chart(fig_hist, use_container_width=True)\n                \n                with col2:\n                    fig_box = px.box(\n                        df, y=primary_column,\n                        title=\"Value Box Plot\"\n                    )\n                    st.plotly_chart(fig_box, use_container_width=True)\n            \n            with tab2:\n                st.subheader(\"🚨 Anomaly Detection Results\")\n                \n                # Combine anomaly results\n                anomaly_columns = [col for col in df.columns if col.startswith('anomaly_')]\n                if anomaly_columns:\n                    df['any_anomaly'] = df[anomaly_columns].any(axis=1)\n                    anomaly_df = df[df['any_anomaly']]\n                    \n                    st.write(f\"Found {len(anomaly_df)} anomalous records out of {len(df)} total records\")\n                    \n                    # Anomaly visualization\n                    if 'timestamp' in df.columns:\n                        fig = go.Figure()\n                        \n                        # Normal points\n                        normal_df = df[~df['any_anomaly']]\n                        fig.add_trace(go.Scatter(\n                            x=normal_df['timestamp'],\n                            y=normal_df[primary_column],\n                            mode='markers',\n                            name='Normal',\n                            marker=dict(color='blue', size=4)\n                        ))\n                        \n                        # Anomaly points\n                        fig.add_trace(go.Scatter(\n                            x=anomaly_df['timestamp'],\n                            y=anomaly_df[primary_column],\n                            mode='markers',\n                            name='Anomaly',\n                            marker=dict(color='red', size=10, symbol='x')\n                        ))\n                        \n                        fig.update_layout(\n                            title=\"Anomaly Detection Results\",\n                            height=400\n                        )\n                        st.plotly_chart(fig, use_container_width=True)\n                    \n                    # Anomaly details\n                    st.subheader(\"Anomaly Details\")\n                    display_cols = ['timestamp', primary_column] + anomaly_columns\n                    display_cols = [col for col in display_cols if col in anomaly_df.columns]\n                    st.dataframe(anomaly_df[display_cols], use_container_width=True)\n                else:\n                    st.info(\"No anomaly detection methods were selected.\")\n            \n            with tab3:\n                st.subheader(\"📈 Trend Analysis\")\n                \n                if 'trend_line' in df.columns:\n                    col1, col2 = st.columns(2)\n                    \n                    with col1:\n                        # Trend metrics\n                        slope = df['trend_slope'].iloc[0] if 'trend_slope' in df.columns else 0\n                        direction = \"📈 Increasing\" if slope > 0 else \"📉 Decreasing\"\n                        st.metric(\"Trend Direction\", direction)\n                        st.metric(\"Trend Slope\", f\"{slope:.4f}\")\n                    \n                    with col2:\n                        # Detrended data\n                        if 'detrended' in df.columns:\n                            fig = px.line(\n                                df, y='detrended',\n                                title=\"Detrended Data\"\n                            )\n                            st.plotly_chart(fig, use_container_width=True)\n                \n                # Seasonality\n                if 'seasonality_period' in df.columns:\n                    st.subheader(\"🔄 Seasonality Analysis\")\n                    period = df['seasonality_period'].iloc[0]\n                    st.metric(\"Dominant Period\", f\"{period:.1f} observations\")\n                else:\n                    st.info(\"Enable seasonality analysis to see periodic patterns.\")\n            \n            with tab4:\n                st.subheader(\"🎯 Clustering Results\")\n                \n                if 'cluster' in df.columns:\n                    # Cluster summary\n                    cluster_counts = df['cluster'].value_counts().sort_index()\n                    \n                    col1, col2 = st.columns([1, 2])\n                    \n                    with col1:\n                        st.write(\"Cluster Distribution:\")\n                        for cluster, count in cluster_counts.items():\n                            if cluster == -1:\n                                st.write(f\"Noise: {count} points\")\n                            else:\n                                st.write(f\"Cluster {cluster}: {count} points\")\n                    \n                    with col2:\n                        # Cluster visualization\n                        if len(numeric_columns) >= 2:\n                            fig = px.scatter(\n                                df, x=numeric_columns[0], y=numeric_columns[1],\n                                color='cluster',\n                                title=\"Cluster Visualization\"\n                            )\n                            st.plotly_chart(fig, use_container_width=True)\n                else:\n                    st.info(\"Enable clustering to group similar data points.\")\n            \n            with tab5:\n                st.subheader(\"📋 Raw Data\")\n                \n                # Data filters\n                col1, col2, col3 = st.columns(3)\n                \n                with col1:\n                    show_anomalies_only = st.checkbox(\"Show Anomalies Only\")\n                \n                with col2:\n                    n_rows = st.number_input(\n                        \"Number of rows to display\",\n                        min_value=10,\n                        max_value=len(df),\n                        value=min(100, len(df))\n                    )\n                \n                with col3:\n                    sort_column = st.selectbox(\n                        \"Sort by\",\n                        df.columns.tolist(),\n                        index=0 if 'timestamp' not in df.columns else df.columns.tolist().index('timestamp')\n                    )\n                \n                # Apply filters\n                display_df = df.copy()\n                if show_anomalies_only and 'any_anomaly' in display_df.columns:\n                    display_df = display_df[display_df['any_anomaly']]\n                \n                display_df = display_df.sort_values(sort_column, ascending=False).head(n_rows)\n                \n                # Display\n                st.dataframe(display_df, use_container_width=True)\n                \n                # Export options\n                st.subheader(\"💾 Export Results\")\n                \n                col1, col2 = st.columns(2)\n                \n                with col1:\n                    csv = df.to_csv(index=False)\n                    st.download_button(\n                        \"Download Full Analysis (CSV)\",\n                        csv,\n                        f\"analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv\",\n                        \"text/csv\"\n                    )\n                \n                with col2:\n                    # Summary report\n                    report = f\"\"\"# JSON Stream Analysis Report\nGenerated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n## Summary\n- Total Records: {len(df)}\n- Time Range: {df['timestamp'].min() if 'timestamp' in df.columns else 'N/A'} to {df['timestamp'].max() if 'timestamp' in df.columns else 'N/A'}\n- Primary Column: {primary_column}\n- Mean: {df[primary_column].mean():.2f}\n- Std Dev: {df[primary_column].std():.2f}\n- Min: {df[primary_column].min():.2f}\n- Max: {df[primary_column].max():.2f}\n\n## Anomalies\n- Total Anomalies: {df['any_anomaly'].sum() if 'any_anomaly' in df.columns else 0}\n- Percentage: {(df['any_anomaly'].sum() / len(df) * 100):.1f}% if 'any_anomaly' in df.columns else 0}%\n\n## Trend\n- Direction: {'Increasing' if 'trend_slope' in df.columns and df['trend_slope'].iloc[0] > 0 else 'Decreasing'}\n- Slope: {df['trend_slope'].iloc[0] if 'trend_slope' in df.columns else 'N/A'}\n\"\"\"\n                    st.download_button(\n                        \"Download Report (TXT)\",\n                        report,\n                        f\"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt\",\n                        \"text/plain\"\n                    )\n\nif __name__ == \"__main__\":\n    main()"
+          }
+        }
+      ],
+      "stop_reason": null,
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 7,
+        "cache_creation_input_tokens": 1320,
+        "cache_read_input_tokens": 43271,
+        "output_tokens": 5537,
+        "service_tier": "standard"
+      }
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "user",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_01EzuEPvhFebk8KvuxLkogYr",
+          "type": "tool_result",
+          "content": "File created successfully at: /workspaces/claude-code-flow/streamlit/advanced_analysis.py"
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "assistant",
+    "message": {
+      "id": "msg_01GeRhMidQSChTdWjtHQZvXj",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-opus-4-20250514",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_016i98CovUWoqU59fxXa1P7p",
+          "name": "Write",
+          "input": {
+            "file_path": "/workspaces/claude-code-flow/streamlit/requirements.txt",
+            "content": "streamlit>=1.28.0\npandas>=2.0.0\nnumpy>=1.24.0\nplotly>=5.17.0\nwebsockets>=11.0\naiohttp>=3.8.0\nasyncio>=3.4.3\nscikit-learn>=1.3.0\nscipy>=1.11.0\nseaborn>=0.12.0\nmatplotlib>=3.7.0\nstreamlit-autorefresh>=0.0.1"
+          }
+        }
+      ],
+      "stop_reason": null,
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 7,
+        "cache_creation_input_tokens": 5573,
+        "cache_read_input_tokens": 44591,
+        "output_tokens": 194,
+        "service_tier": "standard"
+      }
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "user",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_016i98CovUWoqU59fxXa1P7p",
+          "type": "tool_result",
+          "content": "File created successfully at: /workspaces/claude-code-flow/streamlit/requirements.txt"
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "assistant",
+    "message": {
+      "id": "msg_01XT3Ge6ZxP4LEuwQtii4A9b",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-opus-4-20250514",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01P5Aa6CTxsUtiGp8HxFJ5s1",
+          "name": "Write",
+          "input": {
+            "file_path": "/workspaces/claude-code-flow/streamlit/README.md",
+            "content": "# JSON Stream Real-time Analysis with Streamlit\n\nThis directory contains a comprehensive Streamlit application for real-time JSON stream analysis with multiple components for data ingestion, visualization, and advanced analytics.\n\n## 🚀 Quick Start\n\n### Installation\n\n```bash\npip install -r requirements.txt\n```\n\n### Running the Applications\n\n1. **Main Real-time Dashboard**:\n   ```bash\n   streamlit run app.py\n   ```\n\n2. **Advanced Analysis Tool**:\n   ```bash\n   streamlit run advanced_analysis.py\n   ```\n\n3. **WebSocket Client**:\n   ```bash\n   streamlit run websocket_client.py\n   ```\n\n## 📦 Components\n\n### 1. Main Application (`app.py`)\nReal-time JSON stream analysis dashboard with:\n- Multiple data source support (Simulated, HTTP, WebSocket, File Upload)\n- Real-time metrics and KPIs\n- Interactive time series visualization\n- Anomaly detection\n- Category distribution analysis\n- Data export capabilities\n\n### 2. JSON Producer (`json_producer.py`)\nFlexible JSON stream generator supporting:\n- **Console output**: Stream to stdout\n- **File output**: Write to JSONL files\n- **WebSocket server**: Real-time streaming via WebSocket\n- **HTTP server**: SSE and streaming endpoints\n\nUsage examples:\n```bash\n# Console output\npython json_producer.py console --pattern sine --duration 60\n\n# File output\npython json_producer.py file --pattern trending --file data.jsonl\n\n# WebSocket server\npython json_producer.py websocket --port 8765\n\n# HTTP server with SSE\npython json_producer.py http --port 8080\n```\n\n### 3. Advanced Analysis (`advanced_analysis.py`)\nSophisticated analysis tool featuring:\n- Multiple anomaly detection methods (Z-score, IQR, Isolation Forest)\n- Trend analysis and detrending\n- Clustering with DBSCAN\n- Seasonality detection\n- Rolling statistics\n- Comprehensive reporting\n\n### 4. WebSocket Client (`websocket_client.py`)\nDedicated WebSocket client for:\n- Real-time WebSocket connections\n- Live data visualization\n- Connection management\n- Data buffering\n\n## 🔧 Features\n\n### Real-time Processing\n- Auto-refresh with configurable intervals\n- Sliding window buffers\n- Concurrent data processing\n- Memory-efficient streaming\n\n### Visualization\n- Interactive Plotly charts\n- Real-time line charts\n- Distribution plots\n- Category breakdowns\n- Anomaly highlighting\n\n### Analysis Capabilities\n- Statistical metrics (mean, std, min, max)\n- Moving averages\n- Outlier detection\n- Trend analysis\n- Pattern recognition\n- Clustering\n\n### Data Sources\n- Simulated data with various patterns\n- HTTP/SSE endpoints\n- WebSocket connections\n- File uploads (JSONL format)\n\n## 📊 JSON Data Format\n\nExpected JSON format:\n```json\n{\n  \"timestamp\": \"2024-01-20T10:30:00\",\n  \"value\": 42.5,\n  \"category\": \"A\",\n  \"status\": \"normal\",\n  \"metadata\": {\n    \"source\": \"sensor_1\",\n    \"location\": \"building_a\"\n  }\n}\n```\n\n## 🎯 Use Cases\n\n1. **IoT Sensor Monitoring**: Real-time sensor data analysis\n2. **Application Metrics**: Live application performance monitoring\n3. **Financial Data**: Trading data stream analysis\n4. **Log Analysis**: Real-time log processing and anomaly detection\n5. **Event Streaming**: Event-driven architecture monitoring\n\n## 🛠️ Configuration Options\n\n### Streamlit App Configuration\n- Refresh interval: 0.5 - 10 seconds\n- Buffer size: Up to 1000 records\n- Moving average windows: 5 - 50 points\n- Outlier threshold: 1.0 - 4.0 σ\n\n### Producer Configuration\n- Patterns: sine, random, trending, sawtooth\n- Base value adjustment\n- Noise level control\n- Anomaly injection rate\n\n## 📈 Performance Considerations\n\n- Uses efficient data structures (deque) for buffering\n- Implements sliding windows for memory efficiency\n- Supports async operations for non-blocking I/O\n- Configurable refresh rates to balance responsiveness and performance\n\n## 🔍 Troubleshooting\n\n1. **WebSocket Connection Issues**:\n   - Ensure the WebSocket server is running\n   - Check firewall settings\n   - Verify the URL format (ws:// or wss://)\n\n2. **Performance Issues**:\n   - Increase refresh interval\n   - Reduce buffer size\n   - Limit visualization complexity\n\n3. **Data Format Errors**:\n   - Validate JSON format\n   - Ensure required fields are present\n   - Check timestamp formats\n\n## 📝 Example Workflow\n\n1. Start the JSON producer:\n   ```bash\n   python json_producer.py websocket --pattern sine\n   ```\n\n2. Launch the Streamlit app:\n   ```bash\n   streamlit run app.py\n   ```\n\n3. Select \"WebSocket\" as data source\n4. Configure analysis parameters\n5. Monitor real-time data and analytics\n\n## 🚦 Next Steps\n\n- Add database integration for historical data\n- Implement machine learning models for prediction\n- Create custom alert mechanisms\n- Add more visualization types\n- Implement data transformation pipelines"
+          }
+        }
+      ],
+      "stop_reason": "tool_use",
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 7,
+        "cache_creation_input_tokens": 228,
+        "cache_read_input_tokens": 50164,
+        "output_tokens": 1344,
+        "service_tier": "standard"
+      }
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "user",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_01P5Aa6CTxsUtiGp8HxFJ5s1",
+          "type": "tool_result",
+          "content": "File created successfully at: /workspaces/claude-code-flow/streamlit/README.md"
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "assistant",
+    "message": {
+      "id": "msg_01ANfarDFd6KR2C2RjPH386D",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-opus-4-20250514",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01Tth6wU2H1DXfXzRFTqirLd",
+          "name": "Write",
+          "input": {
+            "file_path": "/workspaces/claude-code-flow/streamlit/utils/data_filters.py",
+            "content": "\"\"\"\nData filtering utilities for JSON stream processing\n\"\"\"\n\nimport pandas as pd\nimport numpy as np\nfrom typing import Dict, List, Any, Optional, Callable\nfrom datetime import datetime, timedelta\nimport re\n\nclass DataFilter:\n    \"\"\"Base class for data filters\"\"\"\n    \n    def apply(self, df: pd.DataFrame) -> pd.DataFrame:\n        \"\"\"Apply filter to dataframe\"\"\"\n        raise NotImplementedError\n\nclass TimeRangeFilter(DataFilter):\n    \"\"\"Filter data by time range\"\"\"\n    \n    def __init__(self, start_time: Optional[datetime] = None, \n                 end_time: Optional[datetime] = None,\n                 last_n_minutes: Optional[int] = None):\n        self.start_time = start_time\n        self.end_time = end_time\n        self.last_n_minutes = last_n_minutes\n    \n    def apply(self, df: pd.DataFrame) -> pd.DataFrame:\n        if 'timestamp' not in df.columns:\n            return df\n        \n        df = df.copy()\n        df['timestamp'] = pd.to_datetime(df['timestamp'])\n        \n        if self.last_n_minutes:\n            cutoff_time = datetime.now() - timedelta(minutes=self.last_n_minutes)\n            return df[df['timestamp'] >= cutoff_time]\n        \n        if self.start_time:\n            df = df[df['timestamp'] >= self.start_time]\n        if self.end_time:\n            df = df[df['timestamp'] <= self.end_time]\n        \n        return df\n\nclass ValueRangeFilter(DataFilter):\n    \"\"\"Filter data by value range\"\"\"\n    \n    def __init__(self, column: str, min_value: Optional[float] = None,\n                 max_value: Optional[float] = None):\n        self.column = column\n        self.min_value = min_value\n        self.max_value = max_value\n    \n    def apply(self, df: pd.DataFrame) -> pd.DataFrame:\n        if self.column not in df.columns:\n            return df\n        \n        mask = pd.Series([True] * len(df))\n        \n        if self.min_value is not None:\n            mask &= df[self.column] >= self.min_value\n        if self.max_value is not None:\n            mask &= df[self.column] <= self.max_value\n        \n        return df[mask]\n\nclass CategoryFilter(DataFilter):\n    \"\"\"Filter data by categories\"\"\"\n    \n    def __init__(self, column: str, categories: List[str], \n                 exclude: bool = False):\n        self.column = column\n        self.categories = categories\n        self.exclude = exclude\n    \n    def apply(self, df: pd.DataFrame) -> pd.DataFrame:\n        if self.column not in df.columns:\n            return df\n        \n        if self.exclude:\n            return df[~df[self.column].isin(self.categories)]\n        else:\n            return df[df[self.column].isin(self.categories)]\n\nclass RegexFilter(DataFilter):\n    \"\"\"Filter data using regex patterns\"\"\"\n    \n    def __init__(self, column: str, pattern: str, flags: int = 0):\n        self.column = column\n        self.pattern = pattern\n        self.flags = flags\n        self.regex = re.compile(pattern, flags)\n    \n    def apply(self, df: pd.DataFrame) -> pd.DataFrame:\n        if self.column not in df.columns:\n            return df\n        \n        mask = df[self.column].astype(str).str.contains(\n            self.pattern, regex=True, flags=self.flags, na=False\n        )\n        return df[mask]\n\nclass CustomFilter(DataFilter):\n    \"\"\"Apply custom filter function\"\"\"\n    \n    def __init__(self, filter_func: Callable[[pd.DataFrame], pd.DataFrame]):\n        self.filter_func = filter_func\n    \n    def apply(self, df: pd.DataFrame) -> pd.DataFrame:\n        return self.filter_func(df)\n\nclass CompositeFilter(DataFilter):\n    \"\"\"Combine multiple filters\"\"\"\n    \n    def __init__(self, filters: List[DataFilter], operator: str = 'AND'):\n        self.filters = filters\n        self.operator = operator.upper()\n    \n    def apply(self, df: pd.DataFrame) -> pd.DataFrame:\n        if not self.filters:\n            return df\n        \n        if self.operator == 'AND':\n            result = df\n            for filter_obj in self.filters:\n                result = filter_obj.apply(result)\n            return result\n        \n        elif self.operator == 'OR':\n            masks = []\n            for filter_obj in self.filters:\n                filtered = filter_obj.apply(df)\n                mask = df.index.isin(filtered.index)\n                masks.append(mask)\n            \n            combined_mask = masks[0]\n            for mask in masks[1:]:\n                combined_mask |= mask\n            \n            return df[combined_mask]\n        \n        else:\n            raise ValueError(f\"Unknown operator: {self.operator}\")\n\nclass DataTransformer:\n    \"\"\"Transform JSON data\"\"\"\n    \n    @staticmethod\n    def flatten_json(data: Dict[str, Any], parent_key: str = '', \n                     sep: str = '_') -> Dict[str, Any]:\n        \"\"\"Flatten nested JSON structure\"\"\"\n        items = []\n        for k, v in data.items():\n            new_key = f\"{parent_key}{sep}{k}\" if parent_key else k\n            if isinstance(v, dict):\n                items.extend(\n                    DataTransformer.flatten_json(v, new_key, sep=sep).items()\n                )\n            else:\n                items.append((new_key, v))\n        return dict(items)\n    \n    @staticmethod\n    def extract_nested_value(data: Dict[str, Any], path: str, \n                           default: Any = None) -> Any:\n        \"\"\"Extract value from nested structure using dot notation\"\"\"\n        keys = path.split('.')\n        value = data\n        \n        for key in keys:\n            if isinstance(value, dict) and key in value:\n                value = value[key]\n            else:\n                return default\n        \n        return value\n    \n    @staticmethod\n    def aggregate_by_time(df: pd.DataFrame, time_column: str = 'timestamp',\n                         freq: str = '1min', agg_funcs: Optional[Dict] = None) -> pd.DataFrame:\n        \"\"\"Aggregate data by time intervals\"\"\"\n        if time_column not in df.columns:\n            return df\n        \n        df = df.copy()\n        df[time_column] = pd.to_datetime(df[time_column])\n        df.set_index(time_column, inplace=True)\n        \n        if agg_funcs is None:\n            # Default aggregations\n            numeric_cols = df.select_dtypes(include=[np.number]).columns\n            agg_funcs = {col: ['mean', 'min', 'max', 'count'] for col in numeric_cols}\n        \n        return df.resample(freq).agg(agg_funcs)\n\nclass StreamProcessor:\n    \"\"\"Process streaming JSON data with filters and transformations\"\"\"\n    \n    def __init__(self):\n        self.filters: List[DataFilter] = []\n        self.transformers: List[Callable] = []\n    \n    def add_filter(self, filter_obj: DataFilter):\n        \"\"\"Add a filter to the pipeline\"\"\"\n        self.filters.append(filter_obj)\n    \n    def add_transformer(self, transformer: Callable):\n        \"\"\"Add a transformer to the pipeline\"\"\"\n        self.transformers.append(transformer)\n    \n    def process(self, data: List[Dict[str, Any]]) -> pd.DataFrame:\n        \"\"\"Process data through filters and transformations\"\"\"\n        # Convert to DataFrame\n        df = pd.DataFrame(data)\n        \n        # Apply filters\n        for filter_obj in self.filters:\n            df = filter_obj.apply(df)\n        \n        # Apply transformations\n        for transformer in self.transformers:\n            df = transformer(df)\n        \n        return df\n    \n    def reset(self):\n        \"\"\"Reset all filters and transformers\"\"\"\n        self.filters.clear()\n        self.transformers.clear()\n\n# Utility functions\ndef create_time_filter(last_n_minutes: int) -> TimeRangeFilter:\n    \"\"\"Create a time filter for last N minutes\"\"\"\n    return TimeRangeFilter(last_n_minutes=last_n_minutes)\n\ndef create_anomaly_filter(df: pd.DataFrame, column: str, \n                         threshold: float = 3.0) -> CustomFilter:\n    \"\"\"Create an anomaly filter based on z-score\"\"\"\n    mean = df[column].mean()\n    std = df[column].std()\n    \n    def filter_func(data: pd.DataFrame) -> pd.DataFrame:\n        z_scores = np.abs((data[column] - mean) / std)\n        return data[z_scores > threshold]\n    \n    return CustomFilter(filter_func)\n\ndef create_percentile_filter(df: pd.DataFrame, column: str,\n                           lower_percentile: float = 5,\n                           upper_percentile: float = 95) -> ValueRangeFilter:\n    \"\"\"Create a filter based on percentiles\"\"\"\n    lower_bound = df[column].quantile(lower_percentile / 100)\n    upper_bound = df[column].quantile(upper_percentile / 100)\n    \n    return ValueRangeFilter(column, lower_bound, upper_bound)"
+          }
+        }
+      ],
+      "stop_reason": null,
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 7,
+        "cache_creation_input_tokens": 1378,
+        "cache_read_input_tokens": 50392,
+        "output_tokens": 2457,
+        "service_tier": "standard"
+      }
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "user",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_01Tth6wU2H1DXfXzRFTqirLd",
+          "type": "tool_result",
+          "content": "File created successfully at: /workspaces/claude-code-flow/streamlit/utils/data_filters.py"
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "assistant",
+    "message": {
+      "id": "msg_01Bun8R2LT81Y3cByBPppRk2",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-opus-4-20250514",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01BAGdC46JdLpwnt1djJ3Giq",
+          "name": "Write",
+          "input": {
+            "file_path": "/workspaces/claude-code-flow/streamlit/utils/stream_connectors.py",
+            "content": "\"\"\"\nStream connectors for various data sources\n\"\"\"\n\nimport asyncio\nimport aiohttp\nimport websockets\nimport json\nimport pandas as pd\nfrom typing import Callable, Dict, Any, Optional, AsyncIterator\nfrom datetime import datetime\nimport requests\nfrom abc import ABC, abstractmethod\nimport logging\n\nlogger = logging.getLogger(__name__)\n\nclass StreamConnector(ABC):\n    \"\"\"Base class for stream connectors\"\"\"\n    \n    @abstractmethod\n    async def connect(self):\n        \"\"\"Establish connection to data source\"\"\"\n        pass\n    \n    @abstractmethod\n    async def read(self) -> Dict[str, Any]:\n        \"\"\"Read data from stream\"\"\"\n        pass\n    \n    @abstractmethod\n    async def close(self):\n        \"\"\"Close connection\"\"\"\n        pass\n\nclass WebSocketConnector(StreamConnector):\n    \"\"\"WebSocket stream connector\"\"\"\n    \n    def __init__(self, url: str, headers: Optional[Dict] = None):\n        self.url = url\n        self.headers = headers or {}\n        self.websocket = None\n    \n    async def connect(self):\n        \"\"\"Connect to WebSocket\"\"\"\n        try:\n            self.websocket = await websockets.connect(\n                self.url,\n                extra_headers=self.headers\n            )\n            logger.info(f\"Connected to WebSocket: {self.url}\")\n        except Exception as e:\n            logger.error(f\"WebSocket connection failed: {e}\")\n            raise\n    \n    async def read(self) -> Dict[str, Any]:\n        \"\"\"Read from WebSocket\"\"\"\n        if not self.websocket:\n            raise RuntimeError(\"WebSocket not connected\")\n        \n        try:\n            message = await self.websocket.recv()\n            return json.loads(message)\n        except json.JSONDecodeError as e:\n            logger.error(f\"Failed to parse JSON: {e}\")\n            return {\"error\": \"Invalid JSON\", \"raw\": message}\n    \n    async def close(self):\n        \"\"\"Close WebSocket connection\"\"\"\n        if self.websocket:\n            await self.websocket.close()\n            logger.info(\"WebSocket connection closed\")\n\nclass SSEConnector(StreamConnector):\n    \"\"\"Server-Sent Events connector\"\"\"\n    \n    def __init__(self, url: str, headers: Optional[Dict] = None):\n        self.url = url\n        self.headers = headers or {}\n        self.session = None\n        self.response = None\n    \n    async def connect(self):\n        \"\"\"Connect to SSE endpoint\"\"\"\n        self.session = aiohttp.ClientSession()\n        self.response = await self.session.get(\n            self.url,\n            headers={**self.headers, 'Accept': 'text/event-stream'}\n        )\n        logger.info(f\"Connected to SSE: {self.url}\")\n    \n    async def read(self) -> Dict[str, Any]:\n        \"\"\"Read from SSE stream\"\"\"\n        if not self.response:\n            raise RuntimeError(\"SSE not connected\")\n        \n        async for line in self.response.content:\n            line = line.decode('utf-8').strip()\n            if line.startswith('data: '):\n                try:\n                    data = json.loads(line[6:])\n                    return data\n                except json.JSONDecodeError as e:\n                    logger.error(f\"Failed to parse SSE data: {e}\")\n                    continue\n    \n    async def close(self):\n        \"\"\"Close SSE connection\"\"\"\n        if self.response:\n            self.response.close()\n        if self.session:\n            await self.session.close()\n        logger.info(\"SSE connection closed\")\n\nclass HTTPPollingConnector(StreamConnector):\n    \"\"\"HTTP polling connector\"\"\"\n    \n    def __init__(self, url: str, interval: float = 1.0, \n                 headers: Optional[Dict] = None):\n        self.url = url\n        self.interval = interval\n        self.headers = headers or {}\n        self.session = None\n    \n    async def connect(self):\n        \"\"\"Initialize HTTP session\"\"\"\n        self.session = aiohttp.ClientSession()\n        logger.info(f\"HTTP polling initialized: {self.url}\")\n    \n    async def read(self) -> Dict[str, Any]:\n        \"\"\"Poll HTTP endpoint\"\"\"\n        if not self.session:\n            raise RuntimeError(\"HTTP session not initialized\")\n        \n        try:\n            async with self.session.get(self.url, headers=self.headers) as resp:\n                data = await resp.json()\n                await asyncio.sleep(self.interval)\n                return data\n        except Exception as e:\n            logger.error(f\"HTTP polling error: {e}\")\n            await asyncio.sleep(self.interval)\n            return {\"error\": str(e)}\n    \n    async def close(self):\n        \"\"\"Close HTTP session\"\"\"\n        if self.session:\n            await self.session.close()\n        logger.info(\"HTTP session closed\")\n\nclass KafkaConnector(StreamConnector):\n    \"\"\"Kafka stream connector (requires kafka-python)\"\"\"\n    \n    def __init__(self, bootstrap_servers: str, topic: str, \n                 consumer_group: str = 'streamlit-consumer'):\n        self.bootstrap_servers = bootstrap_servers\n        self.topic = topic\n        self.consumer_group = consumer_group\n        self.consumer = None\n    \n    async def connect(self):\n        \"\"\"Connect to Kafka\"\"\"\n        try:\n            from kafka import KafkaConsumer\n            self.consumer = KafkaConsumer(\n                self.topic,\n                bootstrap_servers=self.bootstrap_servers,\n                group_id=self.consumer_group,\n                value_deserializer=lambda m: json.loads(m.decode('utf-8'))\n            )\n            logger.info(f\"Connected to Kafka topic: {self.topic}\")\n        except ImportError:\n            raise ImportError(\"kafka-python not installed. Run: pip install kafka-python\")\n    \n    async def read(self) -> Dict[str, Any]:\n        \"\"\"Read from Kafka\"\"\"\n        if not self.consumer:\n            raise RuntimeError(\"Kafka not connected\")\n        \n        # Kafka consumer is synchronous, so we run it in executor\n        loop = asyncio.get_event_loop()\n        message = await loop.run_in_executor(None, next, self.consumer)\n        return message.value\n    \n    async def close(self):\n        \"\"\"Close Kafka consumer\"\"\"\n        if self.consumer:\n            self.consumer.close()\n        logger.info(\"Kafka consumer closed\")\n\nclass MQTTConnector(StreamConnector):\n    \"\"\"MQTT stream connector (requires paho-mqtt)\"\"\"\n    \n    def __init__(self, broker: str, port: int, topic: str,\n                 username: Optional[str] = None, \n                 password: Optional[str] = None):\n        self.broker = broker\n        self.port = port\n        self.topic = topic\n        self.username = username\n        self.password = password\n        self.client = None\n        self.message_queue = asyncio.Queue()\n    \n    async def connect(self):\n        \"\"\"Connect to MQTT broker\"\"\"\n        try:\n            import paho.mqtt.client as mqtt\n            \n            self.client = mqtt.Client()\n            \n            if self.username and self.password:\n                self.client.username_pw_set(self.username, self.password)\n            \n            def on_message(client, userdata, message):\n                try:\n                    data = json.loads(message.payload.decode('utf-8'))\n                    asyncio.create_task(self.message_queue.put(data))\n                except Exception as e:\n                    logger.error(f\"MQTT message error: {e}\")\n            \n            self.client.on_message = on_message\n            self.client.connect(self.broker, self.port)\n            self.client.subscribe(self.topic)\n            self.client.loop_start()\n            \n            logger.info(f\"Connected to MQTT broker: {self.broker}:{self.port}\")\n        except ImportError:\n            raise ImportError(\"paho-mqtt not installed. Run: pip install paho-mqtt\")\n    \n    async def read(self) -> Dict[str, Any]:\n        \"\"\"Read from MQTT\"\"\"\n        return await self.message_queue.get()\n    \n    async def close(self):\n        \"\"\"Close MQTT connection\"\"\"\n        if self.client:\n            self.client.loop_stop()\n            self.client.disconnect()\n        logger.info(\"MQTT connection closed\")\n\nclass FileStreamConnector(StreamConnector):\n    \"\"\"File-based stream connector for JSONL files\"\"\"\n    \n    def __init__(self, filepath: str, tail: bool = True, \n                 interval: float = 0.1):\n        self.filepath = filepath\n        self.tail = tail\n        self.interval = interval\n        self.file = None\n        self.position = 0\n    \n    async def connect(self):\n        \"\"\"Open file for streaming\"\"\"\n        self.file = open(self.filepath, 'r')\n        if self.tail:\n            # Move to end of file\n            self.file.seek(0, 2)\n            self.position = self.file.tell()\n        logger.info(f\"Opened file stream: {self.filepath}\")\n    \n    async def read(self) -> Dict[str, Any]:\n        \"\"\"Read from file\"\"\"\n        if not self.file:\n            raise RuntimeError(\"File not opened\")\n        \n        while True:\n            line = self.file.readline()\n            if line:\n                try:\n                    return json.loads(line.strip())\n                except json.JSONDecodeError:\n                    continue\n            else:\n                # No new data, wait and check again\n                await asyncio.sleep(self.interval)\n                \n                # Check if file has grown\n                self.file.seek(0, 2)\n                new_position = self.file.tell()\n                if new_position > self.position:\n                    self.file.seek(self.position)\n                    self.position = new_position\n                else:\n                    self.file.seek(self.position)\n    \n    async def close(self):\n        \"\"\"Close file\"\"\"\n        if self.file:\n            self.file.close()\n        logger.info(\"File stream closed\")\n\nclass StreamManager:\n    \"\"\"Manage multiple stream connectors\"\"\"\n    \n    def __init__(self):\n        self.connectors: Dict[str, StreamConnector] = {}\n        self.tasks: Dict[str, asyncio.Task] = {}\n    \n    async def add_connector(self, name: str, connector: StreamConnector,\n                          callback: Callable[[Dict[str, Any]], None]):\n        \"\"\"Add a stream connector with callback\"\"\"\n        await connector.connect()\n        self.connectors[name] = connector\n        \n        # Create task to read from stream\n        async def read_loop():\n            try:\n                while True:\n                    data = await connector.read()\n                    if data:\n                        callback(data)\n            except asyncio.CancelledError:\n                pass\n            except Exception as e:\n                logger.error(f\"Stream {name} error: {e}\")\n        \n        self.tasks[name] = asyncio.create_task(read_loop())\n    \n    async def remove_connector(self, name: str):\n        \"\"\"Remove a stream connector\"\"\"\n        if name in self.tasks:\n            self.tasks[name].cancel()\n            await self.tasks[name]\n            del self.tasks[name]\n        \n        if name in self.connectors:\n            await self.connectors[name].close()\n            del self.connectors[name]\n    \n    async def close_all(self):\n        \"\"\"Close all connectors\"\"\"\n        for name in list(self.connectors.keys()):\n            await self.remove_connector(name)\n\n# Factory function to create connectors\ndef create_connector(source_type: str, **kwargs) -> StreamConnector:\n    \"\"\"Create a stream connector based on type\"\"\"\n    connectors = {\n        'websocket': WebSocketConnector,\n        'sse': SSEConnector,\n        'http': HTTPPollingConnector,\n        'kafka': KafkaConnector,\n        'mqtt': MQTTConnector,\n        'file': FileStreamConnector\n    }\n    \n    if source_type not in connectors:\n        raise ValueError(f\"Unknown connector type: {source_type}\")\n    \n    return connectors[source_type](**kwargs)"
+          }
+        }
+      ],
+      "stop_reason": "tool_use",
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 7,
+        "cache_creation_input_tokens": 2495,
+        "cache_read_input_tokens": 51770,
+        "output_tokens": 3128,
+        "service_tier": "standard"
+      }
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "user",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_01BAGdC46JdLpwnt1djJ3Giq",
+          "type": "tool_result",
+          "content": "File created successfully at: /workspaces/claude-code-flow/streamlit/utils/stream_connectors.py"
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "assistant",
+    "message": {
+      "id": "msg_01QENhMTZ3tZBp4iMD7Ef93G",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-opus-4-20250514",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_016TY8BWRTyQSiPNkFqVBgnP",
+          "name": "TodoWrite",
+          "input": {
+            "todos": [
+              {
+                "id": "1",
+                "content": "Create Streamlit app structure for JSON stream analysis",
+                "status": "completed",
+                "priority": "high"
+              },
+              {
+                "id": "2",
+                "content": "Implement JSON stream producer/simulator",
+                "status": "completed",
+                "priority": "high"
+              },
+              {
+                "id": "3",
+                "content": "Create Streamlit app with real-time updates",
+                "status": "completed",
+                "priority": "high"
+              },
+              {
+                "id": "4",
+                "content": "Add data visualization components",
+                "status": "completed",
+                "priority": "high"
+              },
+              {
+                "id": "5",
+                "content": "Implement WebSocket/SSE for real-time streaming",
+                "status": "completed",
+                "priority": "medium"
+              },
+              {
+                "id": "6",
+                "content": "Add analysis metrics and statistics",
+                "status": "completed",
+                "priority": "medium"
+              },
+              {
+                "id": "7",
+                "content": "Create requirements.txt for dependencies",
+                "status": "completed",
+                "priority": "medium"
+              },
+              {
+                "id": "8",
+                "content": "Add README with usage instructions",
+                "status": "completed",
+                "priority": "low"
+              }
+            ]
+          }
+        }
+      ],
+      "stop_reason": null,
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 7,
+        "cache_creation_input_tokens": 3167,
+        "cache_read_input_tokens": 54265,
+        "output_tokens": 303,
+        "service_tier": "standard"
+      }
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "user",
+    "message": {
+      "role": "user",
+      "content": [
+        {
+          "tool_use_id": "toolu_016TY8BWRTyQSiPNkFqVBgnP",
+          "type": "tool_result",
+          "content": "Todos have been modified successfully. Ensure that you continue to use the todo list to track your progress. Please proceed with the current tasks if applicable"
+        }
+      ]
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "assistant",
+    "message": {
+      "id": "msg_01CxYYb4JEAvthyBm9N9HBoW",
+      "type": "message",
+      "role": "assistant",
+      "model": "claude-opus-4-20250514",
+      "content": [
+        {
+          "type": "text",
+          "text": "Yes, you can use JSON streams in Streamlit for real-time analysis! I've created a comprehensive solution in the `./streamlit` directory with the following components:\n\n## 🚀 Main Features\n\n1. **Real-time Dashboard** (`app.py`):\n   - Auto-refreshing UI with configurable intervals\n   - Multiple data sources (simulated, WebSocket, HTTP, file upload)\n   - Live metrics and visualizations\n   - Anomaly detection\n   - Data export capabilities\n\n2. **JSON Stream Producer** (`json_producer.py`):\n   ```bash\n   # WebSocket server\n   python streamlit/json_producer.py websocket --port 8765\n   \n   # HTTP/SSE server\n   python streamlit/json_producer.py http --port 8080\n   \n   # Console output\n   python streamlit/json_producer.py console --pattern sine\n   ```\n\n3. **Advanced Analysis Tool** (`advanced_analysis.py`):\n   - Multiple anomaly detection methods\n   - Trend analysis\n   - Clustering\n   - Seasonality detection\n\n## 🏃 Quick Start\n\n```bash\n# Install dependencies\npip install -r streamlit/requirements.txt\n\n# Start the producer (in one terminal)\npython streamlit/json_producer.py websocket\n\n# Run the Streamlit app (in another terminal)\nstreamlit run streamlit/app.py\n```\n\n## 📊 Key Capabilities\n\n- **Real-time Updates**: Uses `streamlit-autorefresh` for continuous data updates\n- **Buffering**: Efficient deque-based buffering (up to 1000 records)\n- **Multiple Visualizations**: Time series, distributions, categories\n- **Anomaly Detection**: Real-time outlier highlighting\n- **Flexible Data Sources**: WebSocket, SSE, HTTP polling, file uploads\n\nThe app handles JSON data in this format:\n```json\n{\n  \"timestamp\": \"2024-01-20T10:30:00\",\n  \"value\": 42.5,\n  \"category\": \"A\",\n  \"status\": \"normal\"\n}\n```\n\nThe solution includes utility modules for data filtering and various stream connectors (WebSocket, SSE, Kafka, MQTT) to handle different streaming scenarios."
+        }
+      ],
+      "stop_reason": null,
+      "stop_sequence": null,
+      "usage": {
+        "input_tokens": 7,
+        "cache_creation_input_tokens": 345,
+        "cache_read_input_tokens": 57432,
+        "output_tokens": 524,
+        "service_tier": "standard"
+      }
+    },
+    "parent_tool_use_id": null,
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7"
+  },
+  {
+    "type": "result",
+    "subtype": "success",
+    "is_error": false,
+    "duration_ms": 384378,
+    "duration_api_ms": 361217,
+    "num_turns": 24,
+    "result": "Yes, you can use JSON streams in Streamlit for real-time analysis! I've created a comprehensive solution in the `./streamlit` directory with the following components:\n\n## 🚀 Main Features\n\n1. **Real-time Dashboard** (`app.py`):\n   - Auto-refreshing UI with configurable intervals\n   - Multiple data sources (simulated, WebSocket, HTTP, file upload)\n   - Live metrics and visualizations\n   - Anomaly detection\n   - Data export capabilities\n\n2. **JSON Stream Producer** (`json_producer.py`):\n   ```bash\n   # WebSocket server\n   python streamlit/json_producer.py websocket --port 8765\n   \n   # HTTP/SSE server\n   python streamlit/json_producer.py http --port 8080\n   \n   # Console output\n   python streamlit/json_producer.py console --pattern sine\n   ```\n\n3. **Advanced Analysis Tool** (`advanced_analysis.py`):\n   - Multiple anomaly detection methods\n   - Trend analysis\n   - Clustering\n   - Seasonality detection\n\n## 🏃 Quick Start\n\n```bash\n# Install dependencies\npip install -r streamlit/requirements.txt\n\n# Start the producer (in one terminal)\npython streamlit/json_producer.py websocket\n\n# Run the Streamlit app (in another terminal)\nstreamlit run streamlit/app.py\n```\n\n## 📊 Key Capabilities\n\n- **Real-time Updates**: Uses `streamlit-autorefresh` for continuous data updates\n- **Buffering**: Efficient deque-based buffering (up to 1000 records)\n- **Multiple Visualizations**: Time series, distributions, categories\n- **Anomaly Detection**: Real-time outlier highlighting\n- **Flexible Data Sources**: WebSocket, SSE, HTTP polling, file uploads\n\nThe app handles JSON data in this format:\n```json\n{\n  \"timestamp\": \"2024-01-20T10:30:00\",\n  \"value\": 42.5,\n  \"category\": \"A\",\n  \"status\": \"normal\"\n}\n```\n\nThe solution includes utility modules for data filtering and various stream connectors (WebSocket, SSE, Kafka, MQTT) to handle different streaming scenarios.",
+    "session_id": "8f790005-10fe-4540-b387-b2171def29f7",
+    "total_cost_usd": 3.4498900499999996,
+    "usage": {
+      "input_tokens": 82,
+      "cache_creation_input_tokens": 57777,
+      "cache_read_input_tokens": 504643,
+      "output_tokens": 21132,
+      "server_tool_use": {
+        "web_search_requests": 0
+      },
+      "service_tier": "standard"
+    }
+  }
+]

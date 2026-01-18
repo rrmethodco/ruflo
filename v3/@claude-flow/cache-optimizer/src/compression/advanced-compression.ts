@@ -476,7 +476,7 @@ export class StructuralCompression implements CompressionStrategy {
     };
   }
 
-  estimateRatio(content: string): number {
+  estimateRatio(_content: string): number {
     // Structural compression typically achieves 10-25% of original
     return 0.2;
   }

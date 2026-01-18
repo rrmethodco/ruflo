@@ -51,6 +51,8 @@
     "@claude-flow/hooks": "^3.0.0-alpha.2",
     "@claude-flow/shared": "^3.0.0-alpha.1",
     "@claude-flow/attention": "^3.0.0-alpha.1",
+    "async-mutex": "^0.5.0",
+    "proper-lockfile": "^4.1.2",
     "zod": "^3.23.0"
   },
   "optionalDependencies": {

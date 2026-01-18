@@ -356,18 +356,21 @@ async function runDoctor(args: string[]): Promise<void> {
  * Handle hook commands
  */
 async function runHookCommand(command: string, args: string[]): Promise<void> {
-  const optimizer = await getGlobalOptimizer();
+  const optimizer = getGlobalOptimizer();
+  await optimizer.initialize();
 
   switch (command) {
     case 'handle-prompt': {
       const prompt = args[0] || '';
-      const result = await handleUserPromptSubmit(prompt);
+      const sessionId = args[1] || 'default';
+      const result = await handleUserPromptSubmit(optimizer, prompt, sessionId);
       console.log(JSON.stringify(result));
       break;
     }
 
     case 'prevent-compact': {
-      const result = await handlePreCompact();
+      const trigger = (args[0] as 'auto' | 'manual') || 'auto';
+      const result = await handlePreCompact(optimizer, trigger);
       console.log(JSON.stringify(result));
       break;
     }
@@ -375,7 +378,10 @@ async function runHookCommand(command: string, args: string[]): Promise<void> {
     case 'post-tool': {
       const toolName = args[0] || '';
       const toolInput = args[1] || '';
-      const result = await handlePostToolUse(toolName, toolInput);
+      const toolOutput = args[2] || '';
+      const success = args[3] !== 'false';
+      const sessionId = args[4] || 'default';
+      const result = await handlePostToolUse(optimizer, toolName, toolInput, toolOutput, success, sessionId);
       console.log(JSON.stringify(result));
       break;
     }
@@ -383,19 +389,19 @@ async function runHookCommand(command: string, args: string[]): Promise<void> {
     case 'pre-tool': {
       // Pre-tool cache check
       const toolName = args[0] || '';
-      const stats = await optimizer.getStats();
+      const metrics = optimizer.getMetrics();
       console.log(JSON.stringify({
         tool: toolName,
-        cacheStats: stats,
+        cacheStats: metrics,
         recommendation: 'proceed',
       }));
       break;
     }
 
     case 'sync-session': {
-      // Sync session state
+      // Sync session state (transition tiers as a sync operation)
       const sessionId = args[0];
-      await optimizer.flush();
+      await optimizer.transitionTiers();
       console.log(JSON.stringify({
         synced: true,
         sessionId,

@@ -216,7 +216,8 @@ train_grnn() {
     ewc_count=$(jq '.ewcConsolidations' "$state_file" 2>/dev/null || echo 0)
     ewc_count=$((ewc_count + 1))
 
-    jq ".ewcConsolidations = $ewc_count | .lastEwcConsolidation = \"$(date -Iseconds)\"" "$state_file" > "${state_file}.tmp" && mv "${state_file}.tmp" "$state_file"
+    local ewc_date=$(get_iso_date)
+    jq ".ewcConsolidations = $ewc_count | .lastEwcConsolidation = \"$ewc_date\"" "$state_file" > "${state_file}.tmp" && mv "${state_file}.tmp" "$state_file"
   fi
 
   success "GRNN temporal learning complete"

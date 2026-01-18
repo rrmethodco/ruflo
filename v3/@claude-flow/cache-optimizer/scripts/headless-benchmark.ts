@@ -228,7 +228,7 @@ async function runSimulation(
     // Simulate time passing (age entries for tier transitions)
     if (i > 0 && i % 20 === 0) {
       // Force process tier transitions by simulating time
-      const transitionResult = await optimizer.processTierTransitions();
+      const transitionResult = await optimizer.transitionTiers();
       results.tierTransitions.hotToWarm += transitionResult.hotToWarm;
       results.tierTransitions.warmToCold += transitionResult.warmToCold;
       results.tierTransitions.coldToArchived += transitionResult.coldToArchived;

@@ -376,15 +376,16 @@ function getSystemMetrics() {
   let memoryMB = 0;
   let subAgents = 0;
 
-  // Check learning.json first (works on all platforms)
+  // Check learning.json first for REAL intelligence metrics
   const learningMetricsPath = path.join(process.cwd(), '.claude-flow', 'metrics', 'learning.json');
   let intelligenceFromFile = null;
   let contextFromFile = null;
   if (fs.existsSync(learningMetricsPath)) {
     try {
       const data = JSON.parse(fs.readFileSync(learningMetricsPath, 'utf-8'));
-      if (data.routing?.accuracy !== undefined) {
-        intelligenceFromFile = Math.min(100, Math.floor(data.routing.accuracy));
+      // Use intelligence.score (the REAL metric) instead of routing.accuracy
+      if (data.intelligence?.score !== undefined) {
+        intelligenceFromFile = Math.min(100, Math.floor(data.intelligence.score));
       }
       if (data.sessions?.total !== undefined) {
         contextFromFile = Math.min(100, data.sessions.total * 5);

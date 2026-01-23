@@ -41,12 +41,17 @@ const isNode = typeof process !== 'undefined' &&
   process.versions != null &&
   process.versions.node != null;
 
-const isBrowser = typeof window !== 'undefined' &&
-  typeof window.document !== 'undefined';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const globalWindow = typeof globalThis !== 'undefined' ? (globalThis as any).window : undefined;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const globalSelf = typeof globalThis !== 'undefined' ? (globalThis as any).self : undefined;
 
-const isWebWorker = typeof self === 'object' &&
-  self.constructor &&
-  self.constructor.name === 'DedicatedWorkerGlobalScope';
+const isBrowser = typeof globalWindow !== 'undefined' &&
+  typeof globalWindow.document !== 'undefined';
+
+const isWebWorker = typeof globalSelf === 'object' &&
+  globalSelf?.constructor &&
+  globalSelf.constructor.name === 'DedicatedWorkerGlobalScope';
 
 /**
  * WasmBridge - Main WASM bridge for Prime Radiant plugin

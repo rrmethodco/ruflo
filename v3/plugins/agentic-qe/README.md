@@ -1,37 +1,6 @@
 # @claude-flow/plugin-agentic-qe
 
-Quality Engineering plugin providing 58 specialized agents across 13 DDD bounded contexts for comprehensive automated testing, quality assessment, and continuous validation.
-
-**npm**: `npm install @claude-flow/plugin-agentic-qe`
-
----
-
-## ✅ Implementation Status
-
-| Component | Status | Details |
-|-----------|--------|---------|
-| **ADR & Architecture** | ✅ Complete | `ADR-030-agentic-qe-integration.md` |
-| **DDD Documentation** | ✅ Complete | `domain-model.md`, `integration-points.md` |
-| **Plugin Manifest** | ✅ Complete | `plugin.yaml` |
-| **TypeScript Implementation** | ✅ Complete | 28 files, ~17,036 LOC |
-| **Core Interfaces & Types** | ✅ Complete | `interfaces.ts`, `types.ts`, `schemas.ts` |
-| **V3 Bridge Implementations** | ✅ Complete | 6 bridges (Memory, Security, Core, Hive, Routing) |
-| **MCP Tools** | ✅ Complete | 17 tools across 6 contexts |
-| **Agent Definitions** | ✅ Partial | 5 YAML files (core agents) |
-| **Tests** | ✅ Complete | Plugin, bridges, and tool tests |
-
-### Implementation Summary
-
-| Category | Files | LOC | Status |
-|----------|-------|-----|--------|
-| Core Plugin | 5 | ~7,870 | ✅ Complete |
-| Interfaces & Types | 3 | ~67,577 | ✅ Complete |
-| Bridge Implementations | 6 | ~80,133 | ✅ Complete |
-| MCP Tools | 17 | ~9,836+ | ✅ Complete |
-| Tests | 3+ | ~42,772 | ✅ Complete |
-| **Total** | **28** | **~17,036** | ✅ **Published** |
-
-See [ADR-030](../../implementation/adrs/ADR-030-agentic-qe-integration.md) for architecture details.
+Quality Engineering plugin providing 58 specialized AI agents across 13 DDD bounded contexts for comprehensive automated testing, quality assessment, and continuous validation.
 
 ---
 

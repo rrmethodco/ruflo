@@ -81,6 +81,9 @@ interface IPluginContext {
     warn(message: string, ...args: unknown[]): void;
     error(message: string, ...args: unknown[]): void;
   };
+  getConfig?(): Record<string, unknown>;
+  set?(key: string, value: unknown): void;
+  getMemoryService?(): { clearNamespace(ns: string): Promise<void> } | null;
 }
 
 /**

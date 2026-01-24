@@ -1013,6 +1013,43 @@ export class BdBridge {
   getConfig(): Readonly<Required<BdBridgeConfig>> {
     return { ...this.config };
   }
+
+  /**
+   * Get cache statistics for performance monitoring
+   */
+  getCacheStats(): {
+    beadQueryCache: { entries: number; sizeBytes: number };
+    singleBeadCache: { entries: number; sizeBytes: number };
+    staticCache: { entries: number; sizeBytes: number };
+    parsedCache: { entries: number; sizeBytes: number };
+  } {
+    return {
+      beadQueryCache: beadQueryCache.stats(),
+      singleBeadCache: singleBeadCache.stats(),
+      staticCache: staticCache.stats(),
+      parsedCache: parsedCache.stats(),
+    };
+  }
+
+  /**
+   * Clear all caches (useful for testing or memory pressure)
+   */
+  clearCaches(): void {
+    beadQueryCache.clear();
+    singleBeadCache.clear();
+    staticCache.clear();
+    parsedCache.clear();
+  }
+
+  /**
+   * Invalidate cache for a specific bead (after create/update/delete)
+   */
+  invalidateBeadCache(beadId: string): void {
+    singleBeadCache.delete(beadId);
+    // Also clear query caches since they may contain stale data
+    beadQueryCache.clear();
+    parsedCache.clear();
+  }
 }
 
 /**

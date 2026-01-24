@@ -338,14 +338,14 @@ export class FinancialEconomyBridge implements EconomyBridge {
       throw new Error('Economy bridge not initialized');
     }
 
-    const numAssets = returns.length;
-    const numPeriods = returns[0]?.length ?? 0;
+    const assetCount = returns.length;
+    const periodCount = returns[0]?.length ?? 0;
 
-    if (this.wasmModule && numAssets > 0 && numPeriods > 0) {
+    if (this.wasmModule && assetCount > 0 && periodCount > 0) {
       // Flatten returns array
-      const flatReturns = new Float32Array(numAssets * numPeriods);
-      for (let i = 0; i < numAssets; i++) {
-        flatReturns.set(returns[i]!, i * numPeriods);
+      const flatReturns = new Float32Array(assetCount * periodCount);
+      for (let i = 0; i < assetCount; i++) {
+        flatReturns.set(returns[i]!, i * periodCount);
       }
 
       const constraintsArray = new Float32Array([
@@ -355,7 +355,7 @@ export class FinancialEconomyBridge implements EconomyBridge {
         constraints.maxVolatility ?? 0.2,
       ]);
 
-      return this.wasmModule.optimize_portfolio(flatReturns, constraintsArray, numAssets, numPeriods);
+      return this.wasmModule.optimize_portfolio(flatReturns, constraintsArray, assetCount, periodCount);
     }
 
     // Fallback: Equal weight allocation

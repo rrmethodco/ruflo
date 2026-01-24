@@ -657,8 +657,10 @@ async function complianceCheckHandler(
     return successResult(result, { durationMs: duration });
 
   } catch (error) {
-    const duration = performance.now() - startTime;
-    logger.error('Compliance check failed', { error: String(error) });
+    logger.error('Compliance check failed', {
+      error: String(error),
+      durationMs: performance.now() - startTime,
+    });
     return errorResult(error instanceof Error ? error : new Error(String(error)));
   }
 }

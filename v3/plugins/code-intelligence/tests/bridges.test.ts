@@ -146,20 +146,21 @@ describe('GNNBridge', () => {
       ];
       const graph = await bridge.buildCodeGraph(files, true);
 
-      const impact = await bridge.predictImpact(graph, ['src/core.ts']);
+      // predictImpact returns Map<string, number> with node impact scores
+      const impact = await bridge.predictImpact(graph, ['src/core.ts'], 3);
 
-      expect(impact).toHaveProperty('affectedNodes');
-      expect(impact).toHaveProperty('impactScores');
-      expect(Array.isArray(impact.affectedNodes)).toBe(true);
+      expect(impact).toBeInstanceOf(Map);
+      expect(impact.has('src/core.ts')).toBe(true);
     });
 
     it('should handle empty changed files', async () => {
       const files = ['src/a.ts', 'src/b.ts'];
       const graph = await bridge.buildCodeGraph(files, false);
 
-      const impact = await bridge.predictImpact(graph, []);
+      const impact = await bridge.predictImpact(graph, [], 3);
 
-      expect(impact.affectedNodes.length).toBe(0);
+      expect(impact).toBeInstanceOf(Map);
+      expect(impact.size).toBe(0);
     });
   });
 

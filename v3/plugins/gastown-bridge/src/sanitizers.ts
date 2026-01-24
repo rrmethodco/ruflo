@@ -327,14 +327,23 @@ export function sanitizeFormulaOutput(raw: string): Formula {
       requires: step.requires?.map(r => sanitizeString(r, 64)),
       metadata: step.metadata ? sanitizeMetadata(step.metadata) : undefined,
     })),
-    vars: data.vars ? sanitizeVars(data.vars) : undefined,
-    synthesis: data.synthesis,
+    vars: data.vars ? sanitizeVarsFromRaw(data.vars) : undefined,
+    synthesis: data.synthesis ? {
+      strategy: data.synthesis.strategy ?? 'merge',
+      format: data.synthesis.format,
+      description: data.synthesis.description,
+    } : undefined,
     templates: data.templates?.map(t => ({
       name: sanitizeString(t.name, 64),
       content: sanitizeString(t.content, MAX_OUTPUT_SIZE.field),
       outputPath: t.outputPath ? sanitizePath(t.outputPath) : undefined,
     })),
-    aspects: data.aspects,
+    aspects: data.aspects?.map(a => ({
+      name: sanitizeString(a.name ?? '', 64),
+      pointcut: sanitizeString(a.pointcut ?? '', 256),
+      advice: sanitizeString(a.advice ?? '', MAX_OUTPUT_SIZE.field),
+      type: (a.type ?? 'after') as 'before' | 'after' | 'around',
+    })),
     metadata: data.metadata ? sanitizeMetadata(data.metadata) : undefined,
   };
 

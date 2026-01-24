@@ -1,5 +1,9 @@
 # @claude-flow/plugin-test-intelligence
 
+[![npm version](https://img.shields.io/npm/v/@claude-flow/plugin-test-intelligence.svg)](https://www.npmjs.com/package/@claude-flow/plugin-test-intelligence)
+[![npm downloads](https://img.shields.io/npm/dm/@claude-flow/plugin-test-intelligence.svg)](https://www.npmjs.com/package/@claude-flow/plugin-test-intelligence)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 A comprehensive test intelligence plugin combining reinforcement learning for optimal test selection with graph neural networks for code-to-test mapping. The plugin enables predictive test selection (run only tests likely to fail), flaky test detection, mutation testing optimization, and test coverage gap identification while integrating seamlessly with popular testing frameworks.
 
 ## Features

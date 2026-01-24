@@ -665,13 +665,23 @@ describe('Convoy', () => {
     });
 
     it('should round percentage to integer', () => {
-      convoy.addIssues([
-        { id: 'i1', title: 'A', status: 'closed', priority: 1 },
+      // Create convoy without autoComplete to avoid auto-transition
+      const manualConvoy = new Convoy({
+        id: 'manual',
+        name: 'Manual',
+        autoComplete: false,
+      });
+
+      manualConvoy.addIssues([
+        { id: 'i1', title: 'A', status: 'open', priority: 1 },
         { id: 'i2', title: 'B', status: 'open', priority: 2 },
         { id: 'i3', title: 'C', status: 'open', priority: 3 },
       ]);
 
-      const progress = convoy.getProgress();
+      // Close one of three issues
+      manualConvoy.updateIssue('i1', { status: 'closed' });
+
+      const progress = manualConvoy.getProgress();
 
       expect(progress.percentComplete).toBe(33); // 1/3 = 33.33... rounds to 33
     });

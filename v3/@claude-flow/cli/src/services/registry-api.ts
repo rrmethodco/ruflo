@@ -158,7 +158,7 @@ export async function getAnalytics(): Promise<AnalyticsResponse> {
     throw new Error('Failed to get analytics');
   }
 
-  return response.json();
+  return response.json() as Promise<AnalyticsResponse>;
 }
 
 /**

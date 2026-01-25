@@ -548,11 +548,13 @@ describe('HealthChecker', () => {
     it('should perform initial check', async () => {
       healthChecker.startChecking('teammate-1', 'team-1', async () => true);
 
-      // Wait for initial check
-      await sleep(50);
+      // Wait for initial check - async checks need adequate time
+      await sleep(150);
 
       const check = healthChecker.getCheck('teammate-1');
-      expect(check?.status).not.toBe('unknown');
+      // After initial check, status should transition from 'unknown'
+      // to either 'healthy' or 'degraded' depending on threshold
+      expect(['healthy', 'degraded']).toContain(check?.status);
     });
   });
 

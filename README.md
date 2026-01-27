@@ -1281,7 +1281,8 @@ Full MCP server with tools for coordination, monitoring, memory, and GitHub inte
 |----------|-------|-------------|
 | **Coordination** | `swarm_init`, `agent_spawn`, `task_orchestrate` | Swarm and agent lifecycle management |
 | **Monitoring** | `swarm_status`, `agent_list`, `agent_metrics`, `task_status` | Real-time status and metrics |
-| **Memory & Neural** | `memory_usage`, `neural_status`, `neural_train`, `neural_patterns` | Memory operations and learning |
+| **Memory** | `memory_store`, `memory_search`, `memory_retrieve`, `memory_list`, `memory_stats`, `memory_migrate` | sql.js + HNSW vector memory with auto-migration |
+| **Neural** | `neural_status`, `neural_train`, `neural_patterns`, `neural_predict` | Pattern learning and prediction |
 | **GitHub** | `github_swarm`, `repo_analyze`, `pr_enhance`, `issue_triage`, `code_review` | Repository integration |
 | **Workers** | `worker/run`, `worker/status`, `worker/alerts`, `worker/history` | Background task management |
 | **Hooks** | `hooks/pre-*`, `hooks/post-*`, `hooks/route`, `hooks/session-*`, `hooks/intelligence/*` | 31 lifecycle hooks |
@@ -3647,6 +3648,26 @@ npx claude-flow@alpha memory search --query "how to cache data" --limit 5
 npx claude-flow@alpha memory list --namespace patterns
 npx claude-flow@alpha memory stats
 ```
+
+**MCP Memory Tools (for Claude Code integration):**
+
+| Tool | Description | Backend |
+|------|-------------|---------|
+| `memory_store` | Store value with vector embedding | sql.js + HNSW |
+| `memory_retrieve` | Retrieve by key | sql.js |
+| `memory_search` | Semantic vector search (150x-12,500x faster) | HNSW index |
+| `memory_delete` | Delete by key | sql.js |
+| `memory_list` | List entries with pagination | sql.js |
+| `memory_stats` | Stats including HNSW index status | sql.js |
+| `memory_migrate` | Migrate legacy JSON to sql.js | Auto-migration |
+
+**Auto-Migration from Legacy JSON:**
+
+MCP memory tools automatically migrate legacy JSON data (`.claude-flow/memory/store.json`) to the sql.js + HNSW backend on first use:
+- Migration is automatic and transparent
+- Original JSON data is preserved
+- Migration marker prevents duplicate migrations
+- Use `memory_migrate --force` to re-run migration
 
 </details>
 

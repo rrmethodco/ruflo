@@ -349,6 +349,7 @@ async function doStatus() {
 const command = process.argv[2] || 'status';
 
 // Suppress unhandled rejection warnings from dynamic import() failures
+// which can cause non-zero exit codes even when caught
 process.on('unhandledRejection', () => {});
 
 try {
@@ -358,11 +359,11 @@ try {
     case 'status': await doStatus(); break;
     default:
       console.log('Usage: auto-memory-hook.mjs <import|sync|status>');
-      break;
+      process.exit(1);
   }
 } catch (err) {
   // Hooks must never crash Claude Code - fail silently
-  try { dim(`Error (non-critical): ${err.message}`); } catch (_) {}
+  dim(`Error (non-critical): ${err.message}`);
 }
-// Force clean exit — process.exitCode alone isn't enough if async errors override it
+// Ensure clean exit for Claude Code hooks (exit 0 = success, no stderr = no error)
 process.exit(0);

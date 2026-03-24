@@ -695,6 +695,71 @@ export const FinancialErrorCodes = {
 export type FinancialErrorCode = (typeof FinancialErrorCodes)[keyof typeof FinancialErrorCodes];
 
 // ============================================================================
+// Stock Recommendations Types
+// ============================================================================
+
+/**
+ * Sectors for stock filtering
+ */
+export type StockSector =
+  | 'technology'
+  | 'healthcare'
+  | 'energy'
+  | 'financials'
+  | 'consumer'
+  | 'industrials'
+  | 'materials'
+  | 'utilities'
+  | 'real_estate'
+  | 'communication'
+  | 'all';
+
+/**
+ * Individual stock recommendation
+ */
+export interface StockRecommendation {
+  rank: number;
+  symbol: string;
+  companyName: string;
+  price: number;
+  sector: string;
+  marketCap: number;
+  peRatio: number | null;
+  revenueGrowth: number;
+  analystRating: 'strong_buy' | 'buy' | 'hold';
+  priceTarget: number;
+  upside: number;
+  reasoning: string[];
+  riskFactors: string[];
+}
+
+/**
+ * Stock recommendations result
+ */
+export interface StockRecommendationsResult {
+  recommendations: StockRecommendation[];
+  priceThreshold: number;
+  sectorFilter: StockSector;
+  marketRegime: string;
+  generatedAt: string;
+  disclaimer: string;
+  analysisTime: number;
+}
+
+/**
+ * Stock recommendations input schema
+ */
+export const StockRecommendationsInputSchema = z.object({
+  priceThreshold: z.number().min(0.01).max(100).default(10),
+  sector: z.enum([
+    'technology', 'healthcare', 'energy', 'financials', 'consumer',
+    'industrials', 'materials', 'utilities', 'real_estate', 'communication', 'all',
+  ]).default('all'),
+  minMarketCap: z.number().min(0).optional(),
+  limit: z.number().int().min(1).max(20).default(5),
+});
+
+// ============================================================================
 // Risk Calculation Proof (for audit reproducibility)
 // ============================================================================
 

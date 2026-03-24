@@ -18,6 +18,9 @@ import type {
   MarketRegimeResult,
   ComplianceCheckResult,
   StressTestResult,
+  StockRecommendationsResult,
+  StockRecommendation,
+  StockSector,
   FinancialAuditLogEntry,
   MarketRegimeType,
 } from './types.js';
@@ -28,6 +31,7 @@ import {
   MarketRegimeInputSchema,
   ComplianceCheckInputSchema,
   StressTestInputSchema,
+  StockRecommendationsInputSchema,
   successResult,
   errorResult,
   FinancialRolePermissions,
@@ -874,6 +878,222 @@ export const stressTestTool: MCPTool = {
 };
 
 // ============================================================================
+// Stock Recommendations Tool
+// ============================================================================
+
+// Curated universe of under-$10 stocks with fundamental data (simulated)
+const STOCK_UNIVERSE: StockRecommendation[] = [
+  {
+    rank: 0,
+    symbol: 'SIRI',
+    companyName: 'SiriusXM Holdings',
+    price: 2.87,
+    sector: 'communication',
+    marketCap: 9_200_000_000,
+    peRatio: 11.2,
+    revenueGrowth: 0.03,
+    analystRating: 'buy',
+    priceTarget: 4.50,
+    upside: 0.568,
+    reasoning: ['Strong subscriber base', 'Dominant satellite radio position', 'Improving free cash flow'],
+    riskFactors: ['Rising streaming competition', 'Debt load from Liberty Media merger'],
+  },
+  {
+    rank: 0,
+    symbol: 'VALE',
+    companyName: 'Vale S.A.',
+    price: 8.43,
+    sector: 'materials',
+    marketCap: 37_500_000_000,
+    peRatio: 6.1,
+    revenueGrowth: -0.04,
+    analystRating: 'buy',
+    priceTarget: 12.00,
+    upside: 0.423,
+    reasoning: ['Deep-value iron ore producer', 'High dividend yield ~8%', 'EV battery nickel demand tailwind'],
+    riskFactors: ['Brazil political risk', 'Iron ore price cyclicality', 'ESG dam-safety concerns'],
+  },
+  {
+    rank: 0,
+    symbol: 'MFAC',
+    companyName: 'Medallion Financial',
+    price: 9.15,
+    sector: 'financials',
+    marketCap: 310_000_000,
+    peRatio: 7.8,
+    revenueGrowth: 0.12,
+    analystRating: 'strong_buy',
+    priceTarget: 14.00,
+    upside: 0.530,
+    reasoning: ['Growing recreation & home improvement loan book', 'P/E at significant discount to peers', 'Insider buying'],
+    riskFactors: ['Small-cap liquidity risk', 'Consumer credit cycle exposure'],
+  },
+  {
+    rank: 0,
+    symbol: 'CTRN',
+    companyName: 'Citi Trends',
+    price: 7.62,
+    sector: 'consumer',
+    marketCap: 118_000_000,
+    peRatio: null,
+    revenueGrowth: -0.07,
+    analystRating: 'buy',
+    priceTarget: 13.00,
+    upside: 0.706,
+    reasoning: ['Deep discount to tangible book value', 'Turnaround cost restructuring underway', 'Value apparel niche resilient in downturns'],
+    riskFactors: ['Prolonged profitability recovery', 'Execution risk on store refresh program'],
+  },
+  {
+    rank: 0,
+    symbol: 'TELL',
+    companyName: 'Tellurian Inc.',
+    price: 4.78,
+    sector: 'energy',
+    marketCap: 980_000_000,
+    peRatio: null,
+    revenueGrowth: 0.21,
+    analystRating: 'buy',
+    priceTarget: 8.00,
+    upside: 0.674,
+    reasoning: ['Driftwood LNG export project optionality', 'Growing domestic gas marketing revenue', 'High beta to LNG price recovery'],
+    riskFactors: ['Project financing uncertainty', 'High cash burn rate', 'Commodity price volatility'],
+  },
+  {
+    rank: 0,
+    symbol: 'NKLA',
+    companyName: 'Nikola Corporation',
+    price: 3.20,
+    sector: 'industrials',
+    marketCap: 840_000_000,
+    peRatio: null,
+    revenueGrowth: 0.45,
+    analystRating: 'hold',
+    priceTarget: 4.00,
+    upside: 0.250,
+    reasoning: ['Hydrogen truck fleet orders growing', 'HYLA fueling network expanding', 'Cost reductions in manufacturing'],
+    riskFactors: ['Pre-profit stage with cash burn', 'Hydrogen infrastructure still nascent', 'Execution history concerns'],
+  },
+  {
+    rank: 0,
+    symbol: 'CLF',
+    companyName: 'Cleveland-Cliffs',
+    price: 9.88,
+    sector: 'materials',
+    marketCap: 4_800_000_000,
+    peRatio: 8.9,
+    revenueGrowth: -0.05,
+    analystRating: 'buy',
+    priceTarget: 16.00,
+    upside: 0.619,
+    reasoning: ['Vertically integrated steel producer', 'Auto sector steel supply dominance', 'Debt reduction trajectory'],
+    riskFactors: ['Steel price cyclicality', 'Auto production slowdown risk', 'Tariff policy sensitivity'],
+  },
+  {
+    rank: 0,
+    symbol: 'GPRO',
+    companyName: 'GoPro Inc.',
+    price: 1.82,
+    sector: 'technology',
+    marketCap: 285_000_000,
+    peRatio: null,
+    revenueGrowth: -0.12,
+    analystRating: 'hold',
+    priceTarget: 2.50,
+    upside: 0.374,
+    reasoning: ['Direct-to-consumer subscription growth', 'Strong brand in action camera niche', 'Cost base rationalized'],
+    riskFactors: ['Revenue contraction trend', 'Smartphone camera competition', 'Limited product diversification'],
+  },
+];
+
+async function stockRecommendationsHandler(
+  input: Record<string, unknown>,
+  context?: ToolContext
+): Promise<MCPToolResult> {
+  const logger = context?.logger ?? defaultLogger;
+  const startTime = performance.now();
+
+  try {
+    if (!checkAuthorization('stock-recommendations', context)) {
+      return errorResult(FinancialErrorCodes.UNAUTHORIZED_ACCESS);
+    }
+
+    const validation = StockRecommendationsInputSchema.safeParse(input);
+    if (!validation.success) {
+      return errorResult(`Invalid input: ${validation.error.message}`);
+    }
+
+    const { priceThreshold, sector, minMarketCap, limit } = validation.data;
+
+    // Filter stocks by price, sector, and optional market cap floor
+    let filtered = STOCK_UNIVERSE.filter(s => s.price <= priceThreshold);
+    if (sector !== 'all') {
+      filtered = filtered.filter(s => s.sector === sector);
+    }
+    if (minMarketCap !== undefined) {
+      filtered = filtered.filter(s => s.marketCap >= minMarketCap);
+    }
+
+    // Rank by composite score: upside potential (60%) + analyst rating (30%) + growth (10%)
+    const ratingWeight: Record<string, number> = { strong_buy: 1.0, buy: 0.7, hold: 0.3 };
+    const scored = filtered
+      .map(s => ({
+        ...s,
+        score: s.upside * 0.6 + ratingWeight[s.analystRating]! * 0.3 + Math.max(s.revenueGrowth, 0) * 0.1,
+      }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit)
+      .map((s, i) => ({ ...s, rank: i + 1 })) as StockRecommendation[];
+
+    const result: StockRecommendationsResult = {
+      recommendations: scored,
+      priceThreshold,
+      sectorFilter: sector as StockSector,
+      marketRegime: 'mixed',
+      generatedAt: new Date().toISOString(),
+      disclaimer: 'For informational purposes only. Not financial advice. Past performance does not guarantee future results.',
+      analysisTime: performance.now() - startTime,
+    };
+
+    logger.info('Stock recommendations generated', {
+      priceThreshold,
+      sector,
+      count: scored.length,
+      durationMs: result.analysisTime,
+    });
+
+    return successResult(result, { durationMs: result.analysisTime });
+
+  } catch (error) {
+    logger.error('Stock recommendations failed', {
+      error: String(error),
+      durationMs: performance.now() - startTime,
+    });
+    return errorResult(error instanceof Error ? error : new Error(String(error)));
+  }
+}
+
+export const stockRecommendationsTool: MCPTool = {
+  name: 'finance/stock-recommendations',
+  description: 'Get top stock recommendations under a given price threshold (default $10/share). Ranks by upside potential, analyst rating, and revenue growth. Returns symbol, price, sector, price target, and reasoning.',
+  category: 'finance',
+  version: '1.0.0',
+  tags: ['stocks', 'recommendations', 'screening', 'penny-stocks', 'value'],
+  cacheable: true,
+  cacheTTL: 300000, // 5 minutes
+  inputSchema: {
+    type: 'object',
+    properties: {
+      priceThreshold: { type: 'number', description: 'Maximum share price (default: 10)' },
+      sector: { type: 'string', description: 'Filter by sector (default: all)' },
+      minMarketCap: { type: 'number', description: 'Minimum market cap in USD (optional)' },
+      limit: { type: 'number', description: 'Number of recommendations to return (default: 5, max: 20)' },
+    },
+    required: [],
+  },
+  handler: stockRecommendationsHandler,
+};
+
+// ============================================================================
 // Export All Tools
 // ============================================================================
 
@@ -883,6 +1103,7 @@ export const financialTools: MCPTool[] = [
   marketRegimeTool,
   complianceCheckTool,
   stressTestTool,
+  stockRecommendationsTool,
 ];
 
 export const toolHandlers = new Map<string, MCPTool['handler']>([
@@ -891,6 +1112,7 @@ export const toolHandlers = new Map<string, MCPTool['handler']>([
   ['finance/market-regime', marketRegimeHandler],
   ['finance/compliance-check', complianceCheckHandler],
   ['finance/stress-test', stressTestHandler],
+  ['finance/stock-recommendations', stockRecommendationsHandler],
 ]);
 
 export function getTool(name: string): MCPTool | undefined {

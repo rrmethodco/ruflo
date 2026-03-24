@@ -36,6 +36,7 @@ export {
   marketRegimeTool,
   complianceCheckTool,
   stressTestTool,
+  stockRecommendationsTool,
 } from './mcp-tools.js';
 
 // Export bridges

@@ -73,6 +73,7 @@ const commandLoaders: Record<string, CommandLoader> = {
   'appliance-advanced': () => import('./appliance-advanced.js'),
   'transfer-store': () => import('./transfer-store.js'),
   cleanup: () => import('./cleanup.js'),
+  gmail: () => import('./gmail.js'),
 };
 
 // Cache for loaded commands
@@ -150,6 +151,7 @@ import { processCommand } from './process.js';
 import { guidanceCommand } from './guidance.js';
 import { applianceCommand } from './appliance.js';
 import { cleanupCommand } from './cleanup.js';
+import { gmailCommand } from './gmail.js';
 
 // Pre-populate cache with core commands
 loadedCommands.set('init', initCommand);
@@ -172,6 +174,7 @@ loadedCommands.set('ruvector', ruvectorCommand);
 loadedCommands.set('hive-mind', hiveMindCommand);
 loadedCommands.set('guidance', guidanceCommand);
 loadedCommands.set('cleanup', cleanupCommand);
+loadedCommands.set('gmail', gmailCommand);
 
 // =============================================================================
 // Exports (maintain backwards compatibility)
@@ -199,6 +202,7 @@ export { hiveMindCommand } from './hive-mind.js';
 export { guidanceCommand } from './guidance.js';
 export { applianceCommand } from './appliance.js';
 export { cleanupCommand } from './cleanup.js';
+export { gmailCommand } from './gmail.js';
 
 // Lazy-loaded command re-exports (for backwards compatibility, but async-only)
 export async function getConfigCommand() { return loadCommand('config'); }

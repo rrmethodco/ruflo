@@ -11,7 +11,7 @@
 import type { Command, CommandContext, CommandResult } from '../types.js';
 import { output } from '../output.js';
 import { input } from '../prompt.js';
-import type { EmailSummary } from '../services/gmail-service.js';
+import type { EmailSummary, UserProfile } from '../services/gmail-service.js';
 
 // ============================================================
 // Helpers
@@ -30,10 +30,14 @@ function truncate(str: string, len: number): string {
   return str.length > len ? str.substring(0, len - 1) + '…' : str;
 }
 
-function printSummary(summaries: EmailSummary[], showDrafts: boolean): void {
+function printSummary(summaries: EmailSummary[], showDrafts: boolean, profile: UserProfile | null = null): void {
   output.writeln();
   output.writeln(output.bold('══════════════════════════════════════════════════════'));
-  output.writeln(output.bold('  Gmail Summary — Organized by Importance'));
+  if (profile) {
+    output.writeln(output.bold(`  Gmail Summary — ${profile.name} | ${profile.role}, ${profile.company}`));
+  } else {
+    output.writeln(output.bold('  Gmail Summary — Organized by Importance'));
+  }
   output.writeln(output.bold('══════════════════════════════════════════════════════'));
 
   for (const level of IMPORTANCE_ORDER) {
@@ -47,7 +51,6 @@ function printSummary(summaries: EmailSummary[], showDrafts: boolean): void {
     else if (level === 'high')  output.writeln(output.color(`${icon} ${label} (${group.length})`, 'brightYellow'));
     else if (level === 'medium') output.writeln(output.color(`${icon} ${label} (${group.length})`, 'brightCyan'));
     else output.writeln(output.color(`${icon} ${label} (${group.length})`, 'gray'));
-
     output.writeln(output.dim('  ' + '─'.repeat(52)));
 
     for (const s of group) {
@@ -56,7 +59,33 @@ function printSummary(summaries: EmailSummary[], showDrafts: boolean): void {
       output.writeln(`  ${output.dim('Date:')} ${s.date}`);
       output.writeln(`  ${s.summary}`);
       if (s.actionRequired) output.writeln(`  ${output.color('→ Action required', 'brightYellow')}`);
+      if (s.taskStrategy) output.writeln(`  ${output.color('⚙ Task requested — strategy available below', 'brightMagenta')}`);
       if (s.isDirectlyAddressed) output.writeln(`  ${output.color('✉ Addressed directly to you', 'brightGreen')}`);
+      output.writeln();
+    }
+  }
+
+  // Task Strategies
+  const withStrategy = summaries.filter(s => s.taskStrategy);
+  if (withStrategy.length) {
+    output.writeln(output.bold('══════════════════════════════════════════════════════'));
+    output.writeln(output.bold(`  Task Strategies & Proposed Workflows (${withStrategy.length})`));
+    output.writeln(output.bold('══════════════════════════════════════════════════════'));
+    for (const s of withStrategy) {
+      const ts = s.taskStrategy!;
+      output.writeln();
+      output.writeln(output.color(`  ⚙ ${truncate(s.subject || '(no subject)', 46)}`, 'brightMagenta'));
+      output.writeln(`  ${output.dim('Task:')} ${ts.taskDescription}`);
+      output.writeln(`  ${output.dim('Timeline:')} ${ts.timeline}`);
+      output.writeln(`  ${output.bold('Steps:')}`);
+      ts.steps.forEach((step, i) => output.writeln(`    ${i + 1}. ${step}`));
+      if (ts.stakeholders.length) {
+        output.writeln(`  ${output.bold('Involve:')} ${ts.stakeholders.join(', ')}`);
+      }
+      if (ts.considerations.length) {
+        output.writeln(`  ${output.bold('Considerations:')}`);
+        ts.considerations.forEach(c => output.writeln(`    • ${c}`));
+      }
       output.writeln();
     }
   }
@@ -65,9 +94,8 @@ function printSummary(summaries: EmailSummary[], showDrafts: boolean): void {
     const withDrafts = summaries.filter(s => s.suggestedDraft);
     if (withDrafts.length) {
       output.writeln(output.bold('══════════════════════════════════════════════════════'));
-      output.writeln(output.bold(`  Suggested Draft Responses (${withDrafts.length})`));
+      output.writeln(output.bold(`  Draft Responses${profile ? ` — as ${profile.name}` : ''} (${withDrafts.length})`));
       output.writeln(output.bold('══════════════════════════════════════════════════════'));
-
       for (const s of withDrafts) {
         output.writeln();
         output.writeln(output.bold(`  Re: ${truncate(s.subject || '(no subject)', 46)}`));
@@ -79,6 +107,81 @@ function printSummary(summaries: EmailSummary[], showDrafts: boolean): void {
     }
   }
 }
+
+// ============================================================
+// profile subcommand
+// ============================================================
+
+const profileCommand: Command = {
+  name: 'profile',
+  description: 'Set your role, company, and core values to personalize AI-crafted responses',
+  options: [
+    { name: 'show', type: 'boolean', description: 'Show current profile without editing' },
+  ],
+  examples: [
+    { command: 'claude-flow gmail profile', description: 'Interactive profile setup' },
+    { command: 'claude-flow gmail profile --show', description: 'Display current profile' },
+  ],
+  action: async (ctx: CommandContext): Promise<CommandResult> => {
+    const { loadProfile, saveProfile } = await import('../services/gmail-service.js');
+    const existing = loadProfile();
+
+    if (ctx.flags.show) {
+      if (!existing) {
+        output.writeln(output.warning('No profile set. Run: claude-flow gmail profile'));
+        return { success: true };
+      }
+      output.writeln();
+      output.writeln(output.bold('Your Gmail AI Profile'));
+      output.writeln(output.dim('─'.repeat(50)));
+      output.writeln(`  ${output.dim('Name:')}   ${existing.name}`);
+      output.writeln(`  ${output.dim('Role:')}   ${existing.role}`);
+      output.writeln(`  ${output.dim('Company:')} ${existing.company}`);
+      output.writeln(`  ${output.dim('Values:')}  ${existing.coreValues.join(', ')}`);
+      output.writeln(`  ${output.dim('Style:')}  ${existing.communicationStyle}`);
+      if (existing.additionalContext) output.writeln(`  ${output.dim('Context:')} ${existing.additionalContext}`);
+      return { success: true };
+    }
+
+    output.writeln();
+    output.writeln(output.bold('Gmail AI Profile Setup'));
+    output.writeln(output.dim('Your role and values will shape all AI-drafted responses.'));
+    output.writeln(output.dim('─'.repeat(50)));
+
+    const name = await input({ message: 'Your full name:', default: existing?.name || '' });
+    const role = await input({ message: 'Your job title/role:', default: existing?.role || '' });
+    const company = await input({ message: 'Company name:', default: existing?.company || '' });
+    const valuesStr = await input({
+      message: 'Company core values (comma-separated):',
+      default: existing?.coreValues?.join(', ') || '',
+      validate: (v: string) => v.trim().length > 0 || 'Please enter at least one value',
+    });
+    const styleStr = await input({
+      message: 'Communication style (formal / professional / casual):',
+      default: existing?.communicationStyle || 'professional',
+      validate: (v: string) => ['formal', 'professional', 'casual'].includes(v.trim()) || 'Enter: formal, professional, or casual',
+    });
+    const context = await input({
+      message: 'Additional context for AI (optional, press Enter to skip):',
+      default: existing?.additionalContext || '',
+    });
+
+    const profile = {
+      name: name.trim(),
+      role: role.trim(),
+      company: company.trim(),
+      coreValues: valuesStr.split(',').map((v: string) => v.trim()).filter(Boolean),
+      communicationStyle: styleStr.trim() as UserProfile['communicationStyle'],
+      additionalContext: context.trim() || undefined,
+    };
+    saveProfile(profile);
+
+    output.writeln();
+    output.writeln(output.success('Profile saved! AI responses will now reflect your role and company values.'));
+    output.writeln(output.dim('Run: claude-flow gmail  to summarize emails with your profile.'));
+    return { success: true };
+  },
+};
 
 // ============================================================
 // auth subcommand
@@ -235,7 +338,7 @@ const summarizeCommand: Command = {
     const {
       loadCredentials, loadTokens, getValidAccessToken,
       getUserEmail, fetchEmails, markDirectlyAddressed,
-      summarizeWithClaude, createGmailDraft,
+      summarizeWithClaude, createGmailDraft, loadProfile,
     } = await import('../services/gmail-service.js');
 
     const creds = loadCredentials();
@@ -255,6 +358,13 @@ const summarizeCommand: Command = {
 
     const count = (ctx.flags.count as number) || 20;
     const saveDrafts = Boolean(ctx.flags['save-drafts']);
+    const profile = loadProfile();
+
+    if (profile) {
+      output.writeln(output.dim(`Using profile: ${profile.name} | ${profile.role} at ${profile.company}`));
+    } else {
+      output.writeln(output.dim('Tip: Run "claude-flow gmail profile" to personalize AI responses with your role & values.'));
+    }
 
     const spinner = output.createSpinner({ text: 'Connecting to Gmail…', spinner: 'dots' });
     spinner.start();
@@ -268,7 +378,7 @@ const summarizeCommand: Command = {
       markDirectlyAddressed(emails, userEmail);
 
       spinner.setText(`Summarizing ${emails.length} emails with Claude AI…`);
-      const summaries = await summarizeWithClaude(emails, userEmail);
+      const summaries = await summarizeWithClaude(emails, userEmail, profile);
       spinner.stop();
 
       if (ctx.flags.json) {
@@ -276,7 +386,7 @@ const summarizeCommand: Command = {
         return { success: true };
       }
 
-      printSummary(summaries, true);
+      printSummary(summaries, true, profile);
 
       // Save drafts to Gmail if requested
       if (saveDrafts) {
@@ -325,7 +435,7 @@ export const gmailCommand: Command = {
   name: 'gmail',
   description: 'Connect to Gmail: read emails, summarize with AI, organize by importance, draft replies',
   aliases: ['email'],
-  subcommands: [authCommand, readCommand, summarizeCommand],
+  subcommands: [profileCommand, authCommand, readCommand, summarizeCommand],
   options: [
     { name: 'count', short: 'n', type: 'number', description: 'Number of emails to process', default: 20 },
     { name: 'save-drafts', type: 'boolean', description: 'Save draft replies to Gmail Drafts folder' },

@@ -18,6 +18,7 @@ import { execSync } from 'child_process';
 const CONFIG_DIR = join(homedir(), '.claude-flow');
 const CREDENTIALS_FILE = join(CONFIG_DIR, 'gmail-credentials.json');
 const TOKENS_FILE = join(CONFIG_DIR, 'gmail-tokens.json');
+const PROFILE_FILE = join(CONFIG_DIR, 'gmail-profile.json');
 const REDIRECT_URI = 'http://localhost:8080/oauth2callback';
 const GMAIL_SCOPES = [
   'https://www.googleapis.com/auth/gmail.readonly',
@@ -31,6 +32,23 @@ const GMAIL_SCOPES = [
 export interface GmailCredentials {
   client_id: string;
   client_secret: string;
+}
+
+export interface UserProfile {
+  name: string;
+  role: string;
+  company: string;
+  coreValues: string[];
+  communicationStyle: 'formal' | 'professional' | 'casual';
+  additionalContext?: string;
+}
+
+export interface TaskStrategy {
+  taskDescription: string;
+  steps: string[];
+  stakeholders: string[];
+  timeline: string;
+  considerations: string[];
 }
 
 export interface GmailTokens {
@@ -60,6 +78,7 @@ export interface EmailSummary {
   summary: string;
   actionRequired: boolean;
   suggestedDraft: string | null;
+  taskStrategy: TaskStrategy | null;
   isDirectlyAddressed: boolean;
 }
 
@@ -95,6 +114,18 @@ export function loadTokens(): GmailTokens | null {
 function saveTokens(tokens: GmailTokens): void {
   ensureConfigDir();
   writeFileSync(TOKENS_FILE, JSON.stringify(tokens, null, 2), { mode: 0o600 });
+}
+
+export function loadProfile(): UserProfile | null {
+  if (!existsSync(PROFILE_FILE)) return null;
+  try {
+    return JSON.parse(readFileSync(PROFILE_FILE, 'utf-8'));
+  } catch { return null; }
+}
+
+export function saveProfile(profile: UserProfile): void {
+  ensureConfigDir();
+  writeFileSync(PROFILE_FILE, JSON.stringify(profile, null, 2), { mode: 0o600 });
 }
 
 // ============================================================
@@ -332,7 +363,11 @@ export function markDirectlyAddressed(emails: EmailMessage[], userEmail: string)
 // AI Summarization via Anthropic
 // ============================================================
 
-export async function summarizeWithClaude(emails: EmailMessage[], userEmail: string): Promise<EmailSummary[]> {
+export async function summarizeWithClaude(
+  emails: EmailMessage[],
+  userEmail: string,
+  profile: UserProfile | null = null
+): Promise<EmailSummary[]> {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY environment variable is not set');
 
@@ -340,17 +375,30 @@ export async function summarizeWithClaude(emails: EmailMessage[], userEmail: str
     `[Email ${i + 1}]\nFrom: ${e.from}\nTo: ${e.to}\nSubject: ${e.subject}\nDate: ${e.date}\nBody: ${e.body.substring(0, 600)}`
   ).join('\n\n---\n\n');
 
-  const prompt = `You are an email assistant for ${userEmail}. Analyze the following ${emails.length} emails.
+  const personaBlock = profile
+    ? `You are acting as ${profile.name}, ${profile.role} at ${profile.company}.
+Company core values: ${profile.coreValues.join(', ')}.
+Communication style: ${profile.communicationStyle}.${profile.additionalContext ? `\nAdditional context: ${profile.additionalContext}` : ''}`
+    : `You are an email assistant for ${userEmail}.`;
 
-Return a JSON array with one object per email (in order), each with:
+  const draftInstructions = profile
+    ? `Write the reply as ${profile.name} in a ${profile.communicationStyle} tone that reflects these core values: ${profile.coreValues.join(', ')}. Sign off appropriately for the role of ${profile.role}.`
+    : `Write a professional draft reply.`;
+
+  const prompt = `${personaBlock}
+
+Analyze the following ${emails.length} emails. Return a JSON array with one object per email (in order), each containing:
 - "importance": "critical"|"high"|"medium"|"low"
-  critical = urgent/emergency/time-sensitive
+  critical = urgent/emergency/time-sensitive decisions
   high = requires action, important person/topic
   medium = needs response but not urgent
   low = newsletters, marketing, automated notifications
-- "summary": 1–2 sentence summary of the email
+- "summary": 1–2 sentence summary
 - "actionRequired": true or false
-- "suggestedDraft": a professional draft reply if the email is personally addressed to ${userEmail} and warrants a response; otherwise null
+- "suggestedDraft": if the email is personally addressed to ${userEmail} and warrants a reply — ${draftInstructions} Otherwise null.
+- "taskStrategy": if the email requests a task, project, or deliverable from ${userEmail}, provide an object with:
+    { "taskDescription": "one sentence", "steps": ["step1","step2","step3"...], "stakeholders": ["who to involve"], "timeline": "suggested timeframe", "considerations": ["risks or notes"] }
+  Otherwise null.
 
 Emails:
 ${emailList}
@@ -380,6 +428,7 @@ Return ONLY a valid JSON array. No markdown, no explanation.`;
     summary?: string;
     actionRequired?: boolean;
     suggestedDraft?: string | null;
+    taskStrategy?: TaskStrategy | null;
   }> = JSON.parse(content);
 
   return results.map((s, i) => ({
@@ -391,6 +440,7 @@ Return ONLY a valid JSON array. No markdown, no explanation.`;
     summary: s.summary || '',
     actionRequired: Boolean(s.actionRequired),
     suggestedDraft: s.suggestedDraft || null,
+    taskStrategy: s.taskStrategy || null,
     isDirectlyAddressed: emails[i]?.isDirectlyAddressed || false,
   }));
 }

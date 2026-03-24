@@ -1022,7 +1022,7 @@ async function stockRecommendationsHandler(
       return errorResult(`Invalid input: ${validation.error.message}`);
     }
 
-    const { priceThreshold, sector, minMarketCap, limit } = validation.data;
+    const { priceThreshold, sector, minMarketCap, limit, sortBy } = validation.data;
 
     // Filter stocks by price, sector, and optional market cap floor
     let filtered = STOCK_UNIVERSE.filter(s => s.price <= priceThreshold);
@@ -1033,13 +1033,26 @@ async function stockRecommendationsHandler(
       filtered = filtered.filter(s => s.marketCap >= minMarketCap);
     }
 
-    // Rank by composite score: upside potential (60%) + analyst rating (30%) + growth (10%)
+    // Scoring weights by sortBy mode:
+    //   composite: upside 40% + analyst rating 25% + growth 35%
+    //   growth:    revenue growth 70% + upside 20% + analyst rating 10%
+    //   upside:    price-to-target upside 80% + analyst rating 20%
     const ratingWeight: Record<string, number> = { strong_buy: 1.0, buy: 0.7, hold: 0.3 };
+    const scoreStock = (s: StockRecommendation): number => {
+      const growth = s.revenueGrowth; // negative values penalize in growth mode
+      const rating = ratingWeight[s.analystRating]!;
+      if (sortBy === 'growth') {
+        return growth * 0.70 + s.upside * 0.20 + rating * 0.10;
+      }
+      if (sortBy === 'upside') {
+        return s.upside * 0.80 + rating * 0.20;
+      }
+      // composite: balanced — growth gets meaningful 35% weight
+      return s.upside * 0.40 + rating * 0.25 + growth * 0.35;
+    };
+
     const scored = filtered
-      .map(s => ({
-        ...s,
-        score: s.upside * 0.6 + ratingWeight[s.analystRating]! * 0.3 + Math.max(s.revenueGrowth, 0) * 0.1,
-      }))
+      .map(s => ({ ...s, score: scoreStock(s) }))
       .sort((a, b) => b.score - a.score)
       .slice(0, limit)
       .map((s, i) => ({ ...s, rank: i + 1 })) as StockRecommendation[];
@@ -1057,6 +1070,7 @@ async function stockRecommendationsHandler(
     logger.info('Stock recommendations generated', {
       priceThreshold,
       sector,
+      sortBy,
       count: scored.length,
       durationMs: result.analysisTime,
     });
@@ -1074,7 +1088,7 @@ async function stockRecommendationsHandler(
 
 export const stockRecommendationsTool: MCPTool = {
   name: 'finance/stock-recommendations',
-  description: 'Get top stock recommendations under a given price threshold (default $10/share). Ranks by upside potential, analyst rating, and revenue growth. Returns symbol, price, sector, price target, and reasoning.',
+  description: 'Get top stock recommendations under a given price threshold (default $10/share). Supports three ranking modes: composite (upside 40% + growth 35% + rating 25%), growth (revenue growth 70% + upside 20% + rating 10%), or upside (price-to-target 80% + rating 20%). Returns symbol, price, sector, price target, and reasoning.',
   category: 'finance',
   version: '1.0.0',
   tags: ['stocks', 'recommendations', 'screening', 'penny-stocks', 'value'],
@@ -1087,6 +1101,7 @@ export const stockRecommendationsTool: MCPTool = {
       sector: { type: 'string', description: 'Filter by sector (default: all)' },
       minMarketCap: { type: 'number', description: 'Minimum market cap in USD (optional)' },
       limit: { type: 'number', description: 'Number of recommendations to return (default: 5, max: 20)' },
+      sortBy: { type: 'string', description: 'Ranking mode: composite (default), growth, or upside' },
     },
     required: [],
   },

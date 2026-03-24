@@ -747,6 +747,11 @@ export interface StockRecommendationsResult {
 }
 
 /**
+ * Sort mode for stock recommendations
+ */
+export type StockSortMode = 'composite' | 'growth' | 'upside';
+
+/**
  * Stock recommendations input schema
  */
 export const StockRecommendationsInputSchema = z.object({
@@ -757,6 +762,7 @@ export const StockRecommendationsInputSchema = z.object({
   ]).default('all'),
   minMarketCap: z.number().min(0).optional(),
   limit: z.number().int().min(1).max(20).default(5),
+  sortBy: z.enum(['composite', 'growth', 'upside']).default('composite'),
 });
 
 // ============================================================================

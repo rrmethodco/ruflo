@@ -1,8 +1,8 @@
 # Claude Code Configuration - Ruflo v3.5
 
-> **Ruflo v3.5** (2026-02-27) — First major stable release. Formerly "Claude Flow".
+> **Ruflo v3.5.42** (2026-03-24) — Latest stable release. Formerly "Claude Flow".
 > 5,900+ commits, 55 alpha iterations, 259 MCP tools, 60+ agents, 8 AgentDB controllers.
-> Packages: `@claude-flow/cli@3.5.0`, `claude-flow@3.5.0`, `ruflo@3.5.0`
+> Packages: `@claude-flow/cli@3.5.42`, `claude-flow@3.5.42`, `ruflo@3.5.42`
 
 ## Behavioral Rules (Always Enforced)
 
@@ -38,12 +38,49 @@
 
 | Package | Path | Purpose |
 |---------|------|---------|
-| `@claude-flow/cli` | `v3/@claude-flow/cli/` | CLI entry point (26 commands) |
+| `@claude-flow/cli` | `v3/@claude-flow/cli/` | CLI entry point (26 commands, 140+ subcommands) |
 | `@claude-flow/codex` | `v3/@claude-flow/codex/` | Dual-mode Claude + Codex collaboration |
-| `@claude-flow/guidance` | `v3/@claude-flow/guidance/` | Governance control plane |
-| `@claude-flow/hooks` | `v3/@claude-flow/hooks/` | 17 hooks + 12 workers |
-| `@claude-flow/memory` | `v3/@claude-flow/memory/` | AgentDB + HNSW search |
-| `@claude-flow/security` | `v3/@claude-flow/security/` | Input validation, CVE remediation |
+| `@claude-flow/guidance` | `v3/@claude-flow/guidance/` | Governance control plane (compile, enforce, prove, evolve) |
+| `@claude-flow/hooks` | `v3/@claude-flow/hooks/` | 17 hooks + 12 background workers |
+| `@claude-flow/memory` | `v3/@claude-flow/memory/` | AgentDB + HNSW vector search |
+| `@claude-flow/security` | `v3/@claude-flow/security/` | Input validation, CVE remediation, path security |
+| `@claude-flow/shared` | `v3/@claude-flow/shared/` | Shared types and utilities |
+| `@claude-flow/agents` | `v3/@claude-flow/agents/` | Agent definitions and lifecycle management |
+| `@claude-flow/embeddings` | `v3/@claude-flow/embeddings/` | Vector embeddings with sql.js, HNSW, hyperbolic support |
+| `@claude-flow/neural` | `v3/@claude-flow/neural/` | Neural pattern training (SONA, MoE, EWC++) |
+| `@claude-flow/performance` | `v3/@claude-flow/performance/` | Performance profiling and benchmarking |
+| `@claude-flow/plugins` | `v3/@claude-flow/plugins/` | Plugin system core (manager, discovery, store) |
+| `@claude-flow/swarm` | `v3/@claude-flow/swarm/` | Swarm coordination and multi-agent orchestration |
+| `@claude-flow/mcp` | `v3/@claude-flow/mcp/` | MCP server and tool management |
+| `@claude-flow/integration` | `v3/@claude-flow/integration/` | agentic-flow + Token Optimizer integration |
+| `ruflo` | `ruflo/` | Thin wrapper package (`npx ruflo@latest`) + MCP bridge |
+
+### Repository Structure
+
+```
+/
+├── v3/                        # V3 monorepo (pnpm workspaces)
+│   ├── @claude-flow/          # All V3 packages
+│   │   ├── cli/               # Main CLI (entry point)
+│   │   │   └── src/
+│   │   │       ├── commands/  # 26+ CLI commands
+│   │   │       ├── mcp-tools/ # 259 MCP tool handlers
+│   │   │       ├── ruvector/  # RuVector WASM intelligence
+│   │   │       └── services/  # Core services
+│   │   ├── memory/            # AgentDB + HNSW
+│   │   ├── hooks/             # 17 hooks + 12 workers
+│   │   ├── security/          # Security primitives
+│   │   └── ...                # 20+ total packages
+│   └── __tests__/             # Integration test suite
+├── ruflo/                     # ruflo npm package
+│   ├── src/mcp-bridge/        # MCP bridge server
+│   └── bin/ruflo.js           # CLI entry point
+├── agents/                    # Agent YAML definitions
+├── bin/                       # Root CLI entry
+├── scripts/                   # Utility scripts
+├── tests/                     # Root-level tests
+└── v2/                        # Legacy V2 codebase
+```
 
 ## Concurrency: 1 MESSAGE = ALL RELATED OPERATIONS
 
@@ -369,6 +406,16 @@ This project is configured with Claude Flow V3 (Anti-Drift Defaults):
 | `process` | 4 | Background process management |
 | `doctor` | 1 | System diagnostics with health checks |
 | `completions` | 4 | Shell completions (bash, zsh, fish, powershell) |
+| `analyze` | 6 | Code analysis: AST, diff classification, risk, graph boundaries |
+| `ruvector` | 9 | RuVector WASM intelligence: embed, search, train, benchmark, setup |
+| `route` | 3 | Semantic task routing (3-tier model router) |
+| `guidance` | 5 | Governance control plane: compile, enforce, prove, evolve |
+| `issues` | 4 | GitHub issue management and triage |
+| `appliance` | 6 | Appliance deployment and management (basic + advanced) |
+| `cleanup` | 3 | Workspace cleanup and maintenance |
+| `transfer-store` | 2 | Cross-platform learning transfer storage |
+| `update` | 2 | CLI self-update mechanism |
+| `progress` | 2 | Task progress tracking and reporting |
 
 ### Quick CLI Examples
 
@@ -1039,6 +1086,64 @@ npx claude-flow@v3alpha plugins publish
 ```
 
 Registry source: IPFS via Pinata (`QmXbfEAaR7D2Ujm4GAkbwcGZQMHqAMpwDoje4583uNP834`)
+
+## Recent Notable Changes (v3.5.x)
+
+| Version | Change |
+|---------|--------|
+| v3.5.42 | Fix issues #1390–#1392: hive-mind, MCP tool, statusline |
+| v3.5.41 | Fix hive-mind status reads real agent state (not hardcoded) |
+| v3.5.40 | Address security audit findings from #1375 |
+| v3.5.39 | Prevent MCP server self-kill on startup |
+| v3.5.38 | Intelligence vector store + statusline accuracy fixes |
+| v3.5.37 | RuVector WASM integration + real semantic embeddings |
+| v3.5.36 | Add missing attention class wrappers + CJS/ESM interop |
+| v3.5.35 | Close semantic routing learning loop in hooks-tools |
+| v3.5.34 | CPU-proportional maxCpuLoad in daemon (replaces hardcoded 2.0) |
+| v3.5.0  | First major stable release; rebranding from Claude Flow → Ruflo |
+
+## ruflo Package (MCP Bridge)
+
+The `ruflo/` subdirectory is a standalone npm package providing:
+- **`bin/ruflo.js`** — CLI entry (delegates to `@claude-flow/cli`)
+- **`src/mcp-bridge/`** — Dockerized MCP bridge server (stdio/HTTP)
+- **`docker-compose.yml`** — Docker deployment configuration
+
+```bash
+# Run via docker
+cd ruflo && docker compose up -d
+
+# Run MCP bridge directly
+node ruflo/src/mcp-bridge/index.js
+
+# Install globally
+npm install -g ruflo
+```
+
+## Testing
+
+```bash
+# Unit tests (vitest)
+npm test
+
+# Integration tests
+cd v3 && pnpm test:integration
+
+# Specific integration suites
+cd v3 && pnpm test:integration:memory
+cd v3 && pnpm test:integration:swarm
+cd v3 && pnpm test:integration:mcp
+cd v3 && pnpm test:integration:plugin
+cd v3 && pnpm test:integration:workflow
+
+# Security tests
+npm run test:security
+
+# Coverage
+cd v3 && pnpm test:coverage
+```
+
+Integration test files live in `v3/__tests__/integration/`.
 
 ## Support
 

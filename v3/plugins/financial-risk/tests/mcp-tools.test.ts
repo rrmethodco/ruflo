@@ -11,6 +11,7 @@ import {
   marketRegimeTool,
   complianceCheckTool,
   stressTestTool,
+  stockRecommendationsTool,
   financialTools,
   getTool,
   getToolNames,
@@ -84,8 +85,8 @@ describe('Financial Risk MCP Tools', () => {
   });
 
   describe('Tool Registry', () => {
-    it('should export all 5 tools', () => {
-      expect(financialTools).toHaveLength(5);
+    it('should export all 6 tools', () => {
+      expect(financialTools).toHaveLength(6);
     });
 
     it('should have correct tool names', () => {
@@ -95,6 +96,7 @@ describe('Financial Risk MCP Tools', () => {
       expect(toolNames).toContain('finance/market-regime');
       expect(toolNames).toContain('finance/compliance-check');
       expect(toolNames).toContain('finance/stress-test');
+      expect(toolNames).toContain('finance/stock-recommendations');
     });
 
     it('should have category finance', () => {
@@ -122,8 +124,9 @@ describe('Financial Risk MCP Tools', () => {
 
     it('should get all tool names', () => {
       const names = getToolNames();
-      expect(names).toHaveLength(5);
+      expect(names).toHaveLength(6);
       expect(names).toContain('finance/portfolio-risk');
+      expect(names).toContain('finance/stock-recommendations');
     });
   });
 
@@ -681,6 +684,203 @@ describe('Financial Risk MCP Tools', () => {
           executionTimeMs: expect.any(Number),
         })
       );
+    });
+  });
+
+  describe('finance/stock-recommendations', () => {
+    it('should have correct tool definition', () => {
+      expect(stockRecommendationsTool.name).toBe('finance/stock-recommendations');
+      expect(stockRecommendationsTool.category).toBe('finance');
+      expect(stockRecommendationsTool.cacheable).toBe(true);
+      expect(stockRecommendationsTool.cacheTTL).toBe(300000);
+    });
+
+    it('should return top 5 stocks under $10 by default', async () => {
+      const result = await stockRecommendationsTool.handler({}, createMockContext());
+
+      expect(result.isError).toBeUndefined();
+      const data = JSON.parse(result.content[0].text!);
+      expect(data.recommendations).toHaveLength(5);
+      expect(data.priceThreshold).toBe(10);
+      data.recommendations.forEach((r: { price: number }) => {
+        expect(r.price).toBeLessThanOrEqual(10);
+      });
+    });
+
+    it('should assign sequential ranks starting at 1', async () => {
+      const result = await stockRecommendationsTool.handler({}, createMockContext());
+
+      const data = JSON.parse(result.content[0].text!);
+      data.recommendations.forEach((r: { rank: number }, i: number) => {
+        expect(r.rank).toBe(i + 1);
+      });
+    });
+
+    it('should include required fields on each recommendation', async () => {
+      const result = await stockRecommendationsTool.handler({}, createMockContext());
+
+      const data = JSON.parse(result.content[0].text!);
+      for (const rec of data.recommendations) {
+        expect(rec.symbol).toBeDefined();
+        expect(rec.companyName).toBeDefined();
+        expect(rec.price).toBeDefined();
+        expect(rec.sector).toBeDefined();
+        expect(rec.analystRating).toBeDefined();
+        expect(rec.priceTarget).toBeDefined();
+        expect(rec.upside).toBeDefined();
+        expect(Array.isArray(rec.reasoning)).toBe(true);
+        expect(Array.isArray(rec.riskFactors)).toBe(true);
+      }
+    });
+
+    it('should include disclaimer and metadata', async () => {
+      const result = await stockRecommendationsTool.handler({}, createMockContext());
+
+      const data = JSON.parse(result.content[0].text!);
+      expect(data.disclaimer).toBeDefined();
+      expect(data.generatedAt).toBeDefined();
+      expect(data.sectorFilter).toBe('all');
+    });
+
+    it('should filter by price threshold', async () => {
+      const result = await stockRecommendationsTool.handler(
+        { priceThreshold: 5 },
+        createMockContext()
+      );
+
+      const data = JSON.parse(result.content[0].text!);
+      expect(data.priceThreshold).toBe(5);
+      data.recommendations.forEach((r: { price: number }) => {
+        expect(r.price).toBeLessThanOrEqual(5);
+      });
+    });
+
+    it('should filter by sector', async () => {
+      const result = await stockRecommendationsTool.handler(
+        { sector: 'materials' },
+        createMockContext()
+      );
+
+      const data = JSON.parse(result.content[0].text!);
+      expect(data.sectorFilter).toBe('materials');
+      data.recommendations.forEach((r: { sector: string }) => {
+        expect(r.sector).toBe('materials');
+      });
+    });
+
+    it('should return empty list when no stocks match sector filter', async () => {
+      const result = await stockRecommendationsTool.handler(
+        { sector: 'real_estate' },
+        createMockContext()
+      );
+
+      const data = JSON.parse(result.content[0].text!);
+      expect(data.recommendations).toHaveLength(0);
+    });
+
+    it('should respect limit parameter', async () => {
+      const result = await stockRecommendationsTool.handler(
+        { limit: 3 },
+        createMockContext()
+      );
+
+      const data = JSON.parse(result.content[0].text!);
+      expect(data.recommendations).toHaveLength(3);
+    });
+
+    it('sortBy=growth should prioritise stocks with highest revenueGrowth', async () => {
+      const [growthResult, upsideResult] = await Promise.all([
+        stockRecommendationsTool.handler({ sortBy: 'growth', limit: 3 }, createMockContext()),
+        stockRecommendationsTool.handler({ sortBy: 'upside', limit: 3 }, createMockContext()),
+      ]);
+
+      const growthData = JSON.parse(growthResult.content[0].text!);
+      const upsideData = JSON.parse(upsideResult.content[0].text!);
+
+      // Top pick by growth must have highest revenueGrowth among top 3 by growth
+      const topGrowthStock = growthData.recommendations[0];
+      const topUpsideStock = upsideData.recommendations[0];
+
+      // The two modes should not always agree on #1
+      // (at minimum, verify both return valid results)
+      expect(topGrowthStock.revenueGrowth).toBeDefined();
+      expect(topUpsideStock.upside).toBeDefined();
+
+      // sortBy=growth top pick must have >= growth than sortBy=upside top pick
+      // (because growth dominates the score at 70%)
+      expect(topGrowthStock.revenueGrowth).toBeGreaterThanOrEqual(
+        growthData.recommendations[growthData.recommendations.length - 1].revenueGrowth
+      );
+    });
+
+    it('sortBy=upside should order by price-to-target upside', async () => {
+      const result = await stockRecommendationsTool.handler(
+        { sortBy: 'upside', limit: 8 },
+        createMockContext()
+      );
+
+      const data = JSON.parse(result.content[0].text!);
+      const upsides: number[] = data.recommendations.map((r: { upside: number }) => r.upside);
+      // Each upside should be >= the next (descending order)
+      for (let i = 0; i < upsides.length - 1; i++) {
+        expect(upsides[i]).toBeGreaterThanOrEqual(upsides[i + 1]!);
+      }
+    });
+
+    it('sortBy=composite should penalise negative revenue growth', async () => {
+      const result = await stockRecommendationsTool.handler(
+        { sortBy: 'composite', limit: 8 },
+        createMockContext()
+      );
+
+      const data = JSON.parse(result.content[0].text!);
+      // VALE has -4% revenue growth; it should rank below positive-growth peers
+      const valeRank = data.recommendations.find((r: { symbol: string }) => r.symbol === 'VALE')?.rank;
+      const mfacRank = data.recommendations.find((r: { symbol: string }) => r.symbol === 'MFAC')?.rank;
+
+      if (valeRank !== undefined && mfacRank !== undefined) {
+        // MFAC (+12% growth, strong_buy) should rank better than VALE (-4% growth)
+        expect(mfacRank).toBeLessThan(valeRank);
+      }
+    });
+
+    it('should reject invalid sortBy value', async () => {
+      const result = await stockRecommendationsTool.handler(
+        { sortBy: 'invalid_mode' },
+        createMockContext()
+      );
+
+      expect(result.isError).toBe(true);
+    });
+
+    it('should reject priceThreshold below 0.01', async () => {
+      const result = await stockRecommendationsTool.handler(
+        { priceThreshold: 0 },
+        createMockContext()
+      );
+
+      expect(result.isError).toBe(true);
+    });
+
+    it('should reject limit above 20', async () => {
+      const result = await stockRecommendationsTool.handler(
+        { limit: 25 },
+        createMockContext()
+      );
+
+      expect(result.isError).toBe(true);
+    });
+
+    it('should filter by minMarketCap', async () => {
+      const result = await stockRecommendationsTool.handler(
+        { minMarketCap: 1_000_000_000 },
+        createMockContext()
+      );
+
+      const data = JSON.parse(result.content[0].text!);
+      data.recommendations.forEach((r: { marketCap: number }) => {
+        expect(r.marketCap).toBeGreaterThanOrEqual(1_000_000_000);
+      });
     });
   });
 

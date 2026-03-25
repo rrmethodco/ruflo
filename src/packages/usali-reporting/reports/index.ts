@@ -12,6 +12,7 @@ export {
   NON_OPERATING,
   MANAGEMENT_FEES,
   FIXED_CHARGES,
+  DEPRECIATION_AMORTIZATION,
 } from './fixed-charges.js';
 
 import { SUMMARY_OPERATING_STATEMENT } from './summary-operating-statement.js';
@@ -28,6 +29,7 @@ import {
   NON_OPERATING,
   MANAGEMENT_FEES,
   FIXED_CHARGES,
+  DEPRECIATION_AMORTIZATION,
 } from './fixed-charges.js';
 import type { USALIReportDefinition } from '../types/usali.js';
 
@@ -44,6 +46,7 @@ export const ALL_REPORTS: USALIReportDefinition[] = [
   NON_OPERATING,
   MANAGEMENT_FEES,
   FIXED_CHARGES,
+  DEPRECIATION_AMORTIZATION,
 ];
 
 /** Get a report definition by ID */

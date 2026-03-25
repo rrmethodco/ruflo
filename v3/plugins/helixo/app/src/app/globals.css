@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground: #171717;
+  --background: #f8fafc;
+  --card: #ffffff;
+  --border: #e2e8f0;
+  --muted: #64748b;
+  --accent: #16a34a;
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.glass-card {
+  @apply bg-white rounded-xl border border-slate-200 shadow-sm;
+}
+
+.kpi-value {
+  @apply text-3xl font-bold tracking-tight;
+}
+
+.kpi-label {
+  @apply text-sm text-slate-500 font-medium;
+}
+
+.bar-fill {
+  @apply h-full rounded-full transition-all duration-500;
+}
+
+.status-ahead { @apply text-emerald-600 bg-emerald-50; }
+.status-on_pace { @apply text-blue-600 bg-blue-50; }
+.status-behind { @apply text-amber-600 bg-amber-50; }
+.status-critical_behind { @apply text-red-600 bg-red-50; }
+.status-critical_ahead { @apply text-purple-600 bg-purple-50; }

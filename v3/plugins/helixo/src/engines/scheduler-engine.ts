@@ -26,36 +26,10 @@ import {
   ROLE_DEPARTMENTS,
 } from '../types.js';
 
-// ============================================================================
-// Helpers
-// ============================================================================
-
-function timeToMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
-  return h * 60 + m;
-}
-
-function minutesToTime(mins: number): string {
-  const h = Math.floor(mins / 60) % 24;
-  const m = mins % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
-function addDays(iso: string, n: number): string {
-  const d = new Date(iso + 'T12:00:00Z');
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-
-function generateId(): string {
-  return `shift_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
-}
-
-const DAYS_OF_WEEK = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+import { addDays, dateToDayOfWeek, generateId, minutesToTime, timeToMinutes } from '../utils.js';
 
 function dateToDayKey(date: string): string {
-  const d = new Date(date + 'T12:00:00Z');
-  return DAYS_OF_WEEK[(d.getUTCDay() + 6) % 7];
+  return dateToDayOfWeek(date);
 }
 
 // ============================================================================
@@ -285,7 +259,14 @@ export class SchedulerEngine {
         return hoursThisWeek + shiftHours <= s.maxHoursPerWeek;
       })
       .filter(s => this.checkMinRest(s.id, date, startTime, lastShiftEnd))
-      .filter(s => (consecutiveDays.get(s.id) ?? 0) < this.config.maxConsecutiveDays);
+      .filter(s => (consecutiveDays.get(s.id) ?? 0) < this.config.maxConsecutiveDays)
+      .filter(s => {
+        if (!s.isMinor) return true;
+        // Minors can't work past 10 PM or before 7 AM
+        const endMin = timeToMinutes(endTime);
+        const startMin = timeToMinutes(startTime);
+        return startMin >= 7 * 60 && endMin <= 22 * 60;
+      });
 
     if (candidates.length === 0) return null;
 
@@ -420,7 +401,7 @@ export class SchedulerEngine {
     }
 
     return {
-      id: generateId(),
+      id: generateId('shift'),
       employeeId: employee.id,
       employeeName: employee.name,
       role,
@@ -444,7 +425,7 @@ export class SchedulerEngine {
     endTime: string,
   ): Shift {
     return {
-      id: generateId(),
+      id: generateId('shift'),
       employeeId: '',
       employeeName: '',
       role,

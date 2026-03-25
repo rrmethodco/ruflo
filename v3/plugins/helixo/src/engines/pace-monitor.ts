@@ -19,25 +19,7 @@ import {
   DEFAULT_PACE_MONITOR_CONFIG,
 } from '../types.js';
 
-// ============================================================================
-// Helpers
-// ============================================================================
-
-function timeToMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
-  return h * 60 + m;
-}
-
-function minutesToTime(mins: number): string {
-  const h = Math.floor(mins / 60) % 24;
-  const m = mins % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
-function nowHHMM(): string {
-  const d = new Date();
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
+import { minutesToTime, nowHHMM, timeToMinutes } from '../utils.js';
 
 // ============================================================================
 // Pace Monitor
@@ -102,13 +84,43 @@ export class PaceMonitor {
         intervalStart: iv.intervalStart,
         intervalEnd: iv.intervalEnd,
         forecastedSales: iv.projectedSales,
-        actualSales: status === 'completed' || status === 'current' ? 0 : 0, // filled by caller granularly
+        actualSales: 0,
         forecastedCovers: iv.projectedCovers,
         actualCovers: 0,
         variance: 0,
         variancePercent: 0,
         status,
       });
+    }
+
+    // Distribute actual sales across completed intervals based on their forecast weight
+    const completedForecastSum = intervalDetails
+      .filter(d => d.status === 'completed')
+      .reduce((s, d) => s + d.forecastedSales, 0);
+
+    for (const detail of intervalDetails) {
+      if (detail.status === 'completed' && completedForecastSum > 0) {
+        const weight = detail.forecastedSales / completedForecastSum;
+        detail.actualSales = Math.round(actualSales * weight * 100) / 100;
+        detail.actualCovers = Math.round(actualCovers * weight);
+        detail.variance = Math.round((detail.actualSales - detail.forecastedSales) * 100) / 100;
+        detail.variancePercent = detail.forecastedSales > 0
+          ? Math.round(((detail.actualSales - detail.forecastedSales) / detail.forecastedSales) * 1000) / 1000
+          : 0;
+      } else if (detail.status === 'current' && completedForecastSum > 0) {
+        // For the current interval, estimate partial actuals
+        const completedPaceRatio = completedForecastSum > 0 ? actualSales / completedForecastSum : 1;
+        const nowMin = timeToMinutes(now);
+        const ivStart = timeToMinutes(detail.intervalStart);
+        const ivEnd = timeToMinutes(detail.intervalEnd);
+        const fraction = (nowMin - ivStart) / (ivEnd - ivStart);
+        detail.actualSales = Math.round(detail.forecastedSales * fraction * completedPaceRatio * 100) / 100;
+        detail.actualCovers = Math.round(detail.forecastedCovers * fraction * completedPaceRatio);
+        detail.variance = Math.round((detail.actualSales - detail.forecastedSales * fraction) * 100) / 100;
+        detail.variancePercent = detail.forecastedSales > 0
+          ? Math.round(((detail.actualSales - detail.forecastedSales * fraction) / (detail.forecastedSales * fraction)) * 1000) / 1000
+          : 0;
+      }
     }
 
     const remainingIntervals = intervals.length - elapsedIntervals;
@@ -258,7 +270,7 @@ export class PaceMonitor {
   }
 
   private estimateLaborSavings(headcountReduction: number, remainingIntervals: number): number {
-    const avgHourlyRate = 14; // blended tipped rate
+    const avgHourlyRate = this.config.blendedHourlyRate ?? 14; // blended tipped rate
     const hoursRemaining = (remainingIntervals * 15) / 60;
     return headcountReduction * avgHourlyRate * hoursRemaining;
   }

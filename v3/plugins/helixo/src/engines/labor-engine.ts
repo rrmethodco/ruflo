@@ -25,20 +25,7 @@ import {
   ROLE_DEPARTMENTS,
 } from '../types.js';
 
-// ============================================================================
-// Helpers
-// ============================================================================
-
-function timeToMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
-  return h * 60 + m;
-}
-
-function minutesToTime(mins: number): string {
-  const h = Math.floor(mins / 60) % 24;
-  const m = mins % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
+import { minutesToTime, timeToMinutes } from '../utils.js';
 
 const FOH_ROLES: StaffRole[] = ['server', 'bartender', 'host', 'busser', 'runner', 'barback', 'sommelier', 'barista'];
 const BOH_ROLES: StaffRole[] = ['line_cook', 'prep_cook', 'sous_chef', 'exec_chef', 'dishwasher', 'expo'];
@@ -267,7 +254,7 @@ export class LaborEngine {
         const nextCount = next.staffingByRole[role] ?? 0;
         const currCount = intervals[i].staffingByRole[role] ?? 0;
         if (nextCount > currCount + 1) {
-          intervals[i].staffingByRole[role] = Math.max(currCount, Math.ceil(nextCount * 0.6));
+          intervals[i].staffingByRole[role] = Math.max(currCount, Math.ceil(nextCount * (this.config.rampUpStaffPercent ?? 0.6)));
         }
       }
       this.recalculateIntervalTotals(intervals[i]);
@@ -280,7 +267,7 @@ export class LaborEngine {
         const prevCount = prev.staffingByRole[role] ?? 0;
         const currCount = intervals[i].staffingByRole[role] ?? 0;
         if (prevCount > currCount + 1) {
-          intervals[i].staffingByRole[role] = Math.max(currCount, Math.ceil(prevCount * 0.5));
+          intervals[i].staffingByRole[role] = Math.max(currCount, Math.ceil(prevCount * (this.config.rampDownStaffPercent ?? 0.5)));
         }
       }
       this.recalculateIntervalTotals(intervals[i]);

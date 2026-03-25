@@ -25,67 +25,16 @@ import {
   type ResyReservationData,
 } from '../types.js';
 
-// ============================================================================
-// Helpers
-// ============================================================================
-
-const DAY_ORDER: DayOfWeek[] = [
-  'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
-];
-
-function dateToDayOfWeek(date: string): DayOfWeek {
-  const d = new Date(date + 'T12:00:00Z');
-  const js = d.getUTCDay(); // 0=Sun
-  return DAY_ORDER[(js + 6) % 7]; // shift so 0=Mon
-}
-
-function addDays(iso: string, n: number): string {
-  const d = new Date(iso + 'T12:00:00Z');
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
-
-function timeToMinutes(hhmm: string): number {
-  const [h, m] = hhmm.split(':').map(Number);
-  return h * 60 + m;
-}
-
-function minutesToTime(mins: number): string {
-  const h = Math.floor(mins / 60) % 24;
-  const m = mins % 60;
-  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
-}
-
-function mean(vals: number[]): number {
-  if (vals.length === 0) return 0;
-  return vals.reduce((a, b) => a + b, 0) / vals.length;
-}
-
-function stddev(vals: number[]): number {
-  if (vals.length < 2) return 0;
-  const avg = mean(vals);
-  const variance = vals.reduce((s, v) => s + (v - avg) ** 2, 0) / (vals.length - 1);
-  return Math.sqrt(variance);
-}
-
-function removeOutliers(vals: number[], threshold: number): number[] {
-  if (vals.length < 3) return vals;
-  const avg = mean(vals);
-  const sd = stddev(vals);
-  if (sd === 0) return vals;
-  return vals.filter(v => Math.abs(v - avg) / sd <= threshold);
-}
-
-function weightedMean(vals: number[], weights: number[]): number {
-  if (vals.length === 0) return 0;
-  let sumW = 0;
-  let sumVW = 0;
-  for (let i = 0; i < vals.length; i++) {
-    sumVW += vals[i] * weights[i];
-    sumW += weights[i];
-  }
-  return sumW > 0 ? sumVW / sumW : 0;
-}
+import {
+  addDays,
+  dateToDayOfWeek,
+  mean,
+  minutesToTime,
+  removeOutliers,
+  stddev,
+  timeToMinutes,
+  weightedMean,
+} from '../utils.js';
 
 // ============================================================================
 // Forecast Engine
@@ -324,7 +273,7 @@ export class ForecastEngine {
 
     // Holiday impact
     if (isHoliday) {
-      const holidayMult = 1.15; // holidays typically boost 15%
+      const holidayMult = this.config.holidayBoostMultiplier ?? 1.15;
       factors.push({
         name: 'Holiday',
         type: 'multiplier',
@@ -338,7 +287,7 @@ export class ForecastEngine {
 
     // Event impact
     if (isEvent) {
-      const eventMult = 1.10;
+      const eventMult = this.config.eventBoostMultiplier ?? 1.10;
       factors.push({
         name: 'Local Event',
         type: 'multiplier',
@@ -376,11 +325,11 @@ export class ForecastEngine {
       case 'light_rain': mult *= 0.92; break;
       case 'heavy_rain': mult *= 0.80; break;
       case 'snow': mult *= 0.70; break;
-      case 'extreme': mult *= 0.50; break;
+      case 'extreme': mult *= this.config.extremeWeatherMultiplier ?? 0.50; break;
     }
     // Temperature extremes
-    if (weather.tempF > 95) mult *= 0.90;
-    else if (weather.tempF < 20) mult *= 0.85;
+    if (weather.tempF > (this.config.highTempThresholdF ?? 95)) mult *= 0.90;
+    else if (weather.tempF < (this.config.lowTempThresholdF ?? 20)) mult *= 0.85;
     return mult;
   }
 
@@ -525,4 +474,129 @@ export class ForecastEngine {
       .filter(r => r.date >= lastYearStart && r.date <= lastYearEnd)
       .reduce((s, r) => s + r.netSales, 0);
   }
+
+  // --------------------------------------------------------------------------
+  // Forecast Accuracy Tracking
+  // --------------------------------------------------------------------------
+
+  /**
+   * Compare a forecast against actual results to measure accuracy.
+   * Returns metrics like MAPE, WMAPE, bias, and per-interval accuracy.
+   */
+  calculateAccuracy(
+    forecast: DailyForecast,
+    actuals: HistoricalSalesRecord[],
+  ): ForecastAccuracyReport {
+    const forecastDate = forecast.date;
+    const dateActuals = actuals.filter(r => r.date === forecastDate);
+
+    const mpReports: MealPeriodAccuracy[] = [];
+
+    for (const mp of forecast.mealPeriods) {
+      const mpActuals = dateActuals.filter(r => r.mealPeriod === mp.mealPeriod);
+      const actualTotal = mpActuals.reduce((s, r) => s + r.netSales, 0);
+      const actualCovers = mpActuals.reduce((s, r) => s + r.covers, 0);
+      const forecastTotal = mp.totalProjectedSales;
+      const forecastCovers = mp.totalProjectedCovers;
+
+      const salesError = forecastTotal - actualTotal;
+      const salesErrorPct = actualTotal > 0 ? Math.abs(salesError) / actualTotal : 0;
+      const coverError = forecastCovers - actualCovers;
+
+      // Per-interval accuracy
+      const intervalAccuracies: IntervalAccuracy[] = [];
+      for (const iv of mp.intervals) {
+        const matchingActual = mpActuals.find(a => a.intervalStart === iv.intervalStart);
+        const actualSales = matchingActual?.netSales ?? 0;
+        const error = iv.projectedSales - actualSales;
+        intervalAccuracies.push({
+          intervalStart: iv.intervalStart,
+          intervalEnd: iv.intervalEnd,
+          forecastedSales: iv.projectedSales,
+          actualSales,
+          error,
+          absolutePercentError: actualSales > 0 ? Math.abs(error) / actualSales : 0,
+          withinConfidenceBand: actualSales >= iv.confidenceLow && actualSales <= iv.confidenceHigh,
+        });
+      }
+
+      const mape = intervalAccuracies.length > 0
+        ? intervalAccuracies.reduce((s, ia) => s + ia.absolutePercentError, 0) / intervalAccuracies.length
+        : 0;
+
+      const withinBand = intervalAccuracies.filter(ia => ia.withinConfidenceBand).length;
+      const bandAccuracy = intervalAccuracies.length > 0 ? withinBand / intervalAccuracies.length : 0;
+
+      mpReports.push({
+        mealPeriod: mp.mealPeriod,
+        forecastedSales: forecastTotal,
+        actualSales: actualTotal,
+        salesError,
+        salesErrorPercent: salesErrorPct,
+        forecastedCovers: forecastCovers,
+        actualCovers,
+        coverError,
+        mape,
+        confidenceBandAccuracy: bandAccuracy,
+        intervalAccuracies,
+        bias: salesError > 0 ? 'over_forecast' : salesError < 0 ? 'under_forecast' : 'accurate',
+      });
+    }
+
+    const totalForecast = forecast.totalDaySales;
+    const totalActual = dateActuals.reduce((s, r) => s + r.netSales, 0);
+    const totalError = totalForecast - totalActual;
+    const wmape = totalActual > 0 ? Math.abs(totalError) / totalActual : 0;
+
+    return {
+      date: forecastDate,
+      totalForecastedSales: totalForecast,
+      totalActualSales: totalActual,
+      totalError,
+      wmape,
+      overallAccuracyPercent: Math.max(0, (1 - wmape) * 100),
+      mealPeriods: mpReports,
+      bias: totalError > 0 ? 'over_forecast' : totalError < 0 ? 'under_forecast' : 'accurate',
+    };
+  }
+}
+
+// ============================================================================
+// Forecast Accuracy Types
+// ============================================================================
+
+export interface ForecastAccuracyReport {
+  date: string;
+  totalForecastedSales: number;
+  totalActualSales: number;
+  totalError: number;
+  wmape: number;                    // Weighted Mean Absolute Percentage Error
+  overallAccuracyPercent: number;   // 0-100, higher is better
+  mealPeriods: MealPeriodAccuracy[];
+  bias: 'over_forecast' | 'under_forecast' | 'accurate';
+}
+
+export interface MealPeriodAccuracy {
+  mealPeriod: MealPeriod;
+  forecastedSales: number;
+  actualSales: number;
+  salesError: number;
+  salesErrorPercent: number;
+  forecastedCovers: number;
+  actualCovers: number;
+  coverError: number;
+  mape: number;
+  confidenceBandAccuracy: number;   // % of intervals where actual fell within confidence band
+  intervalAccuracies: IntervalAccuracy[];
+  bias: 'over_forecast' | 'under_forecast' | 'accurate';
+}
+
+export interface IntervalAccuracy {
+  intervalStart: string;
+  intervalEnd: string;
+  forecastedSales: number;
+  actualSales: number;
+  error: number;
+  absolutePercentError: number;
+  withinConfidenceBand: boolean;
 }

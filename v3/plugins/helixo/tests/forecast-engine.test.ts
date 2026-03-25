@@ -200,4 +200,87 @@ describe('ForecastEngine', () => {
       expect(Math.abs(weekly.totalWeekSales - sumDays)).toBeLessThan(1);
     });
   });
+
+  describe('calculateAccuracy', () => {
+    it('returns accuracy report comparing forecast vs actuals', () => {
+      const history = generateHistory(6, 'monday', 'lunch');
+      const forecast = engine.generateDailyForecast('2026-03-23', history);
+
+      // Use historical records as "actuals" for the forecast date
+      const actuals = history.slice(0, 14).map(r => ({
+        ...r,
+        date: '2026-03-23',
+      }));
+
+      const report = engine.calculateAccuracy(forecast, actuals);
+
+      expect(report.date).toBe('2026-03-23');
+      expect(report.totalForecastedSales).toBeGreaterThan(0);
+      expect(report.overallAccuracyPercent).toBeGreaterThanOrEqual(0);
+      expect(report.overallAccuracyPercent).toBeLessThanOrEqual(100);
+      expect(report.wmape).toBeGreaterThanOrEqual(0);
+      expect(['over_forecast', 'under_forecast', 'accurate']).toContain(report.bias);
+    });
+
+    it('returns 100% accuracy when forecast equals actuals', () => {
+      const history = generateHistory(6, 'monday', 'lunch');
+      const forecast = engine.generateDailyForecast('2026-03-23', history);
+
+      // Synthesize "perfect" actuals matching the forecast exactly
+      const actuals = forecast.mealPeriods.flatMap(mp =>
+        mp.intervals.map(iv => makeHistoryRecord({
+          date: '2026-03-23',
+          dayOfWeek: 'monday',
+          mealPeriod: mp.mealPeriod,
+          intervalStart: iv.intervalStart,
+          intervalEnd: iv.intervalEnd,
+          netSales: iv.projectedSales,
+          covers: iv.projectedCovers,
+        })),
+      );
+
+      const report = engine.calculateAccuracy(forecast, actuals);
+      expect(report.wmape).toBe(0);
+      expect(report.overallAccuracyPercent).toBe(100);
+      expect(report.bias).toBe('accurate');
+    });
+
+    it('reports per-meal-period accuracy', () => {
+      const history = generateHistory(6, 'monday', 'lunch');
+      const forecast = engine.generateDailyForecast('2026-03-23', history);
+
+      const report = engine.calculateAccuracy(forecast, []);
+      // With no actuals, all sales are 0 so forecast is "over"
+      expect(report.mealPeriods.length).toBe(forecast.mealPeriods.length);
+      for (const mp of report.mealPeriods) {
+        expect(mp.actualSales).toBe(0);
+        if (mp.forecastedSales > 0) {
+          expect(mp.bias).toBe('over_forecast');
+        }
+      }
+    });
+
+    it('checks confidence band accuracy', () => {
+      const history = generateHistory(6, 'monday', 'lunch');
+      const forecast = engine.generateDailyForecast('2026-03-23', history);
+
+      // Actuals within the confidence band
+      const actuals = forecast.mealPeriods.flatMap(mp =>
+        mp.intervals.map(iv => makeHistoryRecord({
+          date: '2026-03-23',
+          dayOfWeek: 'monday',
+          mealPeriod: mp.mealPeriod,
+          intervalStart: iv.intervalStart,
+          intervalEnd: iv.intervalEnd,
+          netSales: (iv.confidenceLow + iv.confidenceHigh) / 2, // middle of band
+          covers: iv.projectedCovers,
+        })),
+      );
+
+      const report = engine.calculateAccuracy(forecast, actuals);
+      for (const mp of report.mealPeriods) {
+        expect(mp.confidenceBandAccuracy).toBeGreaterThan(0);
+      }
+    });
+  });
 });

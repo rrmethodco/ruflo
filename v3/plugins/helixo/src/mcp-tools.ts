@@ -5,11 +5,14 @@
  * 8 tools covering forecast, labor, scheduling, and pace monitoring.
  */
 
+import { z } from 'zod';
 import {
   type HelixoConfig,
+  type HistoricalSalesRecord,
   type MCPTool,
   type MCPToolResult,
   type ToolContext,
+  type WeatherCondition,
   ForecastRequestSchema,
   LaborPlanRequestSchema,
   PaceUpdateSchema,
@@ -19,6 +22,78 @@ import { ForecastEngine } from './engines/forecast-engine.js';
 import { LaborEngine } from './engines/labor-engine.js';
 import { SchedulerEngine } from './engines/scheduler-engine.js';
 import { PaceMonitor } from './engines/pace-monitor.js';
+
+// ============================================================================
+// Input Validation Schemas (tool-level)
+// ============================================================================
+
+const DateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD');
+
+const DailyForecastInputSchema = z.object({
+  date: DateSchema,
+  history: z.array(z.object({
+    date: z.string(),
+    dayOfWeek: z.string(),
+    mealPeriod: z.string(),
+    intervalStart: z.string(),
+    intervalEnd: z.string(),
+    netSales: z.number(),
+    grossSales: z.number(),
+    covers: z.number().int().min(0),
+    checkCount: z.number().int().min(0),
+    avgCheck: z.number().min(0),
+    menuMix: z.array(z.any()),
+  })),
+  weather: z.object({
+    tempF: z.number(),
+    precipitation: z.enum(['none', 'light_rain', 'heavy_rain', 'snow', 'extreme']),
+    description: z.string(),
+  }).optional(),
+  holidays: z.array(z.string()).optional(),
+});
+
+const WeeklyForecastInputSchema = z.object({
+  weekStartDate: DateSchema,
+  history: z.array(z.any()).min(0),
+});
+
+const LaborPlanInputSchema = z.object({
+  forecast: z.object({
+    date: z.string(),
+    dayOfWeek: z.string(),
+    mealPeriods: z.array(z.any()),
+    totalDaySales: z.number(),
+    totalDayCovers: z.number(),
+  }),
+});
+
+const ScheduleInputSchema = z.object({
+  weekStartDate: DateSchema,
+  laborPlans: z.array(z.any()).min(1),
+  staff: z.array(z.any()).min(1),
+});
+
+const PaceInputSchema = z.object({
+  forecast: z.object({
+    mealPeriod: z.string(),
+    intervals: z.array(z.any()),
+    totalProjectedSales: z.number(),
+    totalProjectedCovers: z.number(),
+  }),
+  actualSales: z.number().min(0),
+  actualCovers: z.number().int().min(0),
+  currentTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+});
+
+/** Validate input and return parsed result or error MCPToolResult */
+function validateInput<T>(schema: z.ZodType<T>, input: unknown, start: number): { data: T } | { error: MCPToolResult } {
+  const result = schema.safeParse(input);
+  if (!result.success) {
+    const issues = result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ');
+    return { error: { success: false, error: `Validation failed: ${issues}`, metadata: { durationMs: Date.now() - start } } };
+  }
+  return { data: result.data };
+}
 
 // ============================================================================
 // Tool Definitions
@@ -65,11 +140,14 @@ function createForecastDailyTool(config: HelixoConfig): MCPTool {
     handler: async (input: Record<string, unknown>, ctx?: ToolContext): Promise<MCPToolResult> => {
       const start = Date.now();
       try {
-        const holidays = input.holidays ? new Set(input.holidays as string[]) : undefined;
+        const v = validateInput(DailyForecastInputSchema, input, start);
+        if ('error' in v) return v.error;
+        const { date, history, weather, holidays: holidayList } = v.data;
+        const holidays = holidayList ? new Set(holidayList) : undefined;
         const forecast = engine.generateDailyForecast(
-          input.date as string,
-          input.history as never[],
-          input.weather as never,
+          date,
+          history as HistoricalSalesRecord[],
+          weather as WeatherCondition | undefined,
           undefined,
           holidays,
         );
@@ -107,9 +185,11 @@ function createForecastWeeklyTool(config: HelixoConfig): MCPTool {
     handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
       const start = Date.now();
       try {
+        const v = validateInput(WeeklyForecastInputSchema, input, start);
+        if ('error' in v) return v.error;
         const forecast = engine.generateWeeklyForecast(
-          input.weekStartDate as string,
-          input.history as never[],
+          v.data.weekStartDate,
+          v.data.history as HistoricalSalesRecord[],
         );
         return {
           success: true,
@@ -148,7 +228,9 @@ function createLaborPlanTool(config: HelixoConfig): MCPTool {
     handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
       const start = Date.now();
       try {
-        const plan = engine.generateDailyLaborPlan(input.forecast as never);
+        const v = validateInput(LaborPlanInputSchema, input, start);
+        if ('error' in v) return v.error;
+        const plan = engine.generateDailyLaborPlan(v.data.forecast as never);
         return {
           success: true,
           data: plan,
@@ -238,10 +320,12 @@ function createScheduleTool(config: HelixoConfig): MCPTool {
     handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
       const start = Date.now();
       try {
+        const v = validateInput(ScheduleInputSchema, input, start);
+        if ('error' in v) return v.error;
         const schedule = scheduler.generateWeeklySchedule(
-          input.weekStartDate as string,
-          input.laborPlans as never[],
-          input.staff as never[],
+          v.data.weekStartDate,
+          v.data.laborPlans as never[],
+          v.data.staff as never[],
         );
         return {
           success: true,
@@ -283,11 +367,13 @@ function createPaceSnapshotTool(config: HelixoConfig): MCPTool {
     handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
       const start = Date.now();
       try {
+        const v = validateInput(PaceInputSchema, input, start);
+        if ('error' in v) return v.error;
         const snapshot = monitor.calculatePace(
-          input.forecast as never,
-          input.actualSales as number,
-          input.actualCovers as number,
-          input.currentTime as string | undefined,
+          v.data.forecast as never,
+          v.data.actualSales,
+          v.data.actualCovers,
+          v.data.currentTime,
         );
         return {
           success: true,
@@ -324,10 +410,12 @@ function createPaceRecommendationsTool(config: HelixoConfig): MCPTool {
     handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
       const start = Date.now();
       try {
+        const v = validateInput(PaceInputSchema, input, start);
+        if ('error' in v) return v.error;
         const snapshot = monitor.calculatePace(
-          input.forecast as never,
-          input.actualSales as number,
-          input.actualCovers as number,
+          v.data.forecast as never,
+          v.data.actualSales,
+          v.data.actualCovers,
         );
         return {
           success: true,

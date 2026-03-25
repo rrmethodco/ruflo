@@ -20,11 +20,13 @@ import {
 export class ResyAdapter {
   private readonly config: ResyConfig;
   private readonly logger: Logger;
+  private readonly venueCapacity: number;
   private authToken: string | undefined;
 
-  constructor(config: ResyConfig, logger?: Logger) {
+  constructor(config: ResyConfig, logger?: Logger, venueCapacity = 100) {
     this.config = config;
     this.logger = logger ?? { debug() {}, info() {}, warn() {}, error() {} };
+    this.venueCapacity = venueCapacity;
   }
 
   // --------------------------------------------------------------------------
@@ -102,7 +104,7 @@ export class ResyAdapter {
         id: slot.config?.id ?? `resy_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
         dateTime: slot.date.start,
         partySize: slot.size?.min ?? 2,
-        status: this.mapStatus(slot.payment?.cancellation_fee ? 'confirmed' : 'confirmed'),
+        status: 'confirmed', // RESY /find endpoint returns available slots; all are confirmed
         isVIP: slot.config?.type === 'VIP' || false,
         bookedAt: slot.date.start, // RESY doesn't expose booking time in search
       });
@@ -139,9 +141,6 @@ export class ResyAdapter {
       (a, b) => a[0].localeCompare(b[0]),
     );
 
-    // Estimate capacity (simplified)
-    const totalCapacity = 100; // would come from venue config
-
     return sortedHours.map(([hour, covers]) => {
       const walkIns = Math.round(covers * 0.25); // estimate 25% walk-in ratio per hour
       return {
@@ -149,7 +148,7 @@ export class ResyAdapter {
         reservedCovers: covers,
         estimatedWalkIns: walkIns,
         totalExpectedCovers: covers + walkIns,
-        capacityPercent: (covers + walkIns) / totalCapacity,
+        capacityPercent: (covers + walkIns) / this.venueCapacity,
         daysOut: 0,
       };
     });

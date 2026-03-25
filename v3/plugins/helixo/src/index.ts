@@ -80,6 +80,7 @@ export class HelixoPlugin {
 // ============================================================================
 
 export { ForecastEngine } from './engines/forecast-engine.js';
+export type { ForecastAccuracyReport, MealPeriodAccuracy, IntervalAccuracy } from './engines/forecast-engine.js';
 export { LaborEngine } from './engines/labor-engine.js';
 export { SchedulerEngine } from './engines/scheduler-engine.js';
 export { PaceMonitor } from './engines/pace-monitor.js';

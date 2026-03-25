@@ -620,6 +620,11 @@ export interface ForecastConfig {
   outlierStdDevThreshold: number;   // outlier removal threshold (default 2.5)
   weatherEnabled: boolean;
   reservationPaceEnabled: boolean;
+  holidayBoostMultiplier?: number;   // default 1.15
+  eventBoostMultiplier?: number;     // default 1.10
+  extremeWeatherMultiplier?: number; // default 0.50
+  highTempThresholdF?: number;       // default 95
+  lowTempThresholdF?: number;        // default 20
 }
 
 export interface LaborConfig {
@@ -630,6 +635,8 @@ export interface LaborConfig {
   sideWorkAllocation: number;    // percentage of FOH hours for sidework (default 0.08)
   rampUpIntervals: number;       // intervals before service to start staffing (default 2)
   rampDownIntervals: number;     // intervals to keep staff after projected drop (default 1)
+  rampUpStaffPercent?: number;   // default 0.6 — staff at ramp-up intervals as fraction of next peak
+  rampDownStaffPercent?: number; // default 0.5 — staff at ramp-down intervals as fraction of prev peak
 }
 
 export interface RoleProductivity {
@@ -677,6 +684,7 @@ export interface PaceMonitorConfig {
   autoRecommendCuts: boolean;      // auto-recommend labor cuts
   autoRecommendCalls: boolean;     // auto-recommend calling in staff
   lookAheadIntervals: number;      // how many intervals ahead to project (default 4)
+  blendedHourlyRate?: number;      // default 14, used for savings estimates
 }
 
 // ============================================================================
@@ -783,7 +791,7 @@ export type ScheduleRequest = z.infer<typeof ScheduleRequestSchema>;
 export type PaceUpdate = z.infer<typeof PaceUpdateSchema>;
 
 // ============================================================================
-// Forecast Review & Acceptance Workflow
+// Forecast Review & Acceptance Workflow (planned — not yet implemented in engines)
 // ============================================================================
 
 export type ForecastStatus = 'draft' | 'pending_review' | 'accepted' | 'adjusted' | 'locked';

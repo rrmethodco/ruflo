@@ -3,10 +3,12 @@
  *
  * Five separate schedules for undistributed departments:
  *  1. Administrative & General
- *  2. Sales & Marketing
- *  3. Property Operations & Maintenance
- *  4. Utilities
- *  5. Information & Telecommunications
+ *  2. Information & Technology
+ *  3. Sales & Marketing
+ *  4. Property Operations & Maintenance
+ *  5. Utilities
+ *
+ * GL account numbers mapped to Sage Intacct chart of accounts.
  */
 
 import {
@@ -43,67 +45,80 @@ const agDept = [USALIDepartment.ADMIN_AND_GENERAL];
 const AG_LINES: ReportLineItem[] = [
   line('header-labor', 'LABOR COSTS', 'header', { type: 'none' }, { bold: true }),
   line('labor-salaries', '  Salaries & Wages', 'account', {
-    type: 'gl_range', from: '6000', to: '6070', departments: agDept,
-  }, { indent: 1 }),
-  line('labor-benefits', '  Benefits', 'account', {
-    type: 'gl_range', from: '6100', to: '6170', departments: agDept,
+    type: 'gl_range', from: '6110000', to: '6610000', departments: agDept,
   }, { indent: 1 }),
   line('total-labor', 'TOTAL LABOR', 'total', {
-    type: 'sum', lineIds: ['labor-salaries', 'labor-benefits'],
+    type: 'sum', lineIds: ['labor-salaries'],
   }, { bold: true, underline: 'single' }),
   line('blank-1', '', 'blank', { type: 'none' }),
 
   line('header-other', 'OTHER EXPENSES', 'header', { type: 'none' }, { bold: true }),
-  line('exp-accounting', '  Accounting & Audit', 'account', {
-    type: 'gl_accounts', accounts: ['7200'], departments: agDept,
+  line('exp-office-admin', '  Office & Admin', 'account', {
+    type: 'gl_accounts', accounts: ['8110000'], departments: agDept,
+  }, { indent: 1 }),
+  line('exp-office-supplies', '  Office Supplies', 'account', {
+    type: 'gl_accounts', accounts: ['8111100'], departments: agDept,
+  }, { indent: 1 }),
+  line('exp-admin-travel', '  Admin Travel', 'account', {
+    type: 'gl_accounts', accounts: ['8111500'], departments: agDept,
+  }, { indent: 1 }),
+  line('exp-professional', '  Professional Fees', 'account', {
+    type: 'gl_accounts', accounts: ['8120000'], departments: agDept,
   }, { indent: 1 }),
   line('exp-legal', '  Legal Fees', 'account', {
-    type: 'gl_accounts', accounts: ['7210'], departments: agDept,
+    type: 'gl_accounts', accounts: ['8121000'], departments: agDept,
   }, { indent: 1 }),
-  line('exp-professional', '  Professional Fees - Other', 'account', {
-    type: 'gl_accounts', accounts: ['7220'], departments: agDept,
+  line('exp-accounting', '  Accounting & Audit', 'account', {
+    type: 'gl_accounts', accounts: ['8121200'], departments: agDept,
   }, { indent: 1 }),
-  line('exp-baddebt', '  Bad Debt Expense', 'account', {
-    type: 'gl_accounts', accounts: ['7230'], departments: agDept,
+  line('exp-tax', '  Tax & Compliance', 'account', {
+    type: 'gl_accounts', accounts: ['8121400'], departments: agDept,
+  }, { indent: 1 }),
+  line('exp-consulting', '  Consulting', 'account', {
+    type: 'gl_accounts', accounts: ['8121500'], departments: agDept,
+  }, { indent: 1 }),
+  line('exp-recruiting', '  Recruiting/HR Services', 'account', {
+    type: 'gl_accounts', accounts: ['8121610'], departments: agDept,
+  }, { indent: 1 }),
+  line('exp-appraisal', '  Asset Appraisal', 'account', {
+    type: 'gl_accounts', accounts: ['8121800'], departments: agDept,
+  }, { indent: 1 }),
+  line('exp-environmental', '  Environmental Reports', 'account', {
+    type: 'gl_accounts', accounts: ['8121900'], departments: agDept,
+  }, { indent: 1 }),
+  line('exp-insurance', '  Insurance (Non-Property)', 'account', {
+    type: 'gl_accounts', accounts: [
+      '8130000', '8131100', '8131200', '8131300', '8131400', '8131500',
+      '8131600', '8131700', '8131800', '8131900', '8132000', '8132100',
+      '8139000',
+    ], departments: agDept,
+  }, { indent: 1 }),
+  line('exp-bank', '  Bank & Treasury Fees', 'account', {
+    type: 'gl_accounts', accounts: ['8140000'], departments: agDept,
+  }, { indent: 1 }),
+  line('exp-baddebt', '  Bad Debt', 'account', {
+    type: 'gl_accounts', accounts: ['8141200'], departments: agDept,
   }, { indent: 1 }),
   line('exp-cash', '  Cash Over/Short', 'account', {
-    type: 'gl_accounts', accounts: ['7240'], departments: agDept,
+    type: 'gl_accounts', accounts: ['8141400'], departments: agDept,
   }, { indent: 1 }),
-  line('exp-cc', '  Credit Card Commissions', 'account', {
-    type: 'gl_accounts', accounts: ['7080'], departments: agDept,
+  line('exp-cc', '  Credit Card Processing', 'account', {
+    type: 'gl_accounts', accounts: ['8172000'], departments: agDept,
   }, { indent: 1 }),
-  line('exp-donations', '  Donations', 'account', {
-    type: 'gl_accounts', accounts: ['7250'], departments: agDept,
+  line('exp-other-admin', '  Other Admin', 'account', {
+    type: 'gl_accounts', accounts: ['8190000'], departments: agDept,
   }, { indent: 1 }),
-  line('exp-dues', '  Dues & Subscriptions', 'account', {
-    type: 'gl_accounts', accounts: ['7260'], departments: agDept,
-  }, { indent: 1 }),
-  line('exp-insurance', '  General Insurance', 'account', {
-    type: 'gl_accounts', accounts: ['7270'], departments: agDept,
-  }, { indent: 1 }),
-  line('exp-licenses', '  Licenses & Permits', 'account', {
-    type: 'gl_accounts', accounts: ['7280'], departments: agDept,
-  }, { indent: 1 }),
-  line('exp-loss', '  Loss & Damage', 'account', {
-    type: 'gl_accounts', accounts: ['7290'], departments: agDept,
-  }, { indent: 1 }),
-  line('exp-operating', '  Operating Supplies', 'account', {
-    type: 'gl_accounts', accounts: ['7110'], departments: agDept,
-  }, { indent: 1 }),
-  line('exp-printing', '  Printing & Stationery', 'account', {
-    type: 'gl_accounts', accounts: ['7120'], departments: agDept,
-  }, { indent: 1 }),
-  line('exp-postage', '  Postage & Shipping', 'account', {
-    type: 'gl_accounts', accounts: ['7130'], departments: agDept,
-  }, { indent: 1 }),
-  line('exp-telecom', '  Telecommunications', 'account', {
-    type: 'gl_accounts', accounts: ['7140'], departments: agDept,
-  }, { indent: 1 }),
-  line('exp-travel', '  Travel & Entertainment', 'account', {
-    type: 'gl_accounts', accounts: ['7295'], departments: agDept,
+  line('exp-charitable', '  Charitable', 'account', {
+    type: 'gl_accounts', accounts: ['8191600'], departments: agDept,
   }, { indent: 1 }),
   line('total-other', 'TOTAL OTHER EXPENSES', 'total', {
-    type: 'sum', lineIds: ['exp-accounting', 'exp-legal', 'exp-professional', 'exp-baddebt', 'exp-cash', 'exp-cc', 'exp-donations', 'exp-dues', 'exp-insurance', 'exp-licenses', 'exp-loss', 'exp-operating', 'exp-printing', 'exp-postage', 'exp-telecom', 'exp-travel'],
+    type: 'sum', lineIds: [
+      'exp-office-admin', 'exp-office-supplies', 'exp-admin-travel',
+      'exp-professional', 'exp-legal', 'exp-accounting', 'exp-tax',
+      'exp-consulting', 'exp-recruiting', 'exp-appraisal', 'exp-environmental',
+      'exp-insurance', 'exp-bank', 'exp-baddebt', 'exp-cash', 'exp-cc',
+      'exp-other-admin', 'exp-charitable',
+    ],
   }, { bold: true, underline: 'single' }),
   line('blank-2', '', 'blank', { type: 'none' }),
 
@@ -125,6 +140,62 @@ export const ADMIN_GENERAL: USALIReportDefinition = {
   columns: SUMMARY_OPERATING_STATEMENT.columns,
 };
 
+// ─── Information & Technology ────────────────────────────────────────────────
+
+const itDept = [USALIDepartment.INFORMATION_TECHNOLOGY];
+
+const IT_LINES: ReportLineItem[] = [
+  line('header-labor', 'LABOR COSTS', 'header', { type: 'none' }, { bold: true }),
+  line('labor-salaries', '  Salaries & Wages', 'account', {
+    type: 'gl_range', from: '6110000', to: '6610000', departments: itDept,
+  }, { indent: 1 }),
+  line('total-labor', 'TOTAL LABOR', 'total', {
+    type: 'sum', lineIds: ['labor-salaries'],
+  }, { bold: true, underline: 'single' }),
+  line('blank-1', '', 'blank', { type: 'none' }),
+
+  line('header-other', 'OTHER EXPENSES', 'header', { type: 'none' }, { bold: true }),
+  line('exp-systems', '  Systems & Software', 'account', {
+    type: 'gl_accounts', accounts: [
+      '8210000', '8211100', '8211110', '8211120', '8211200', '8211300',
+      '8211400', '8211500', '8211510', '8211600', '8211610', '8211620',
+      '8211700',
+    ], departments: itDept,
+  }, { indent: 1 }),
+  line('exp-telecom', '  Telecommunications', 'account', {
+    type: 'gl_accounts', accounts: [
+      '8220000', '8221100', '8221110', '8221200', '8221300', '8221400',
+      '8221500', '8221600',
+    ], departments: itDept,
+  }, { indent: 1 }),
+  line('exp-support', '  IT Support & Hardware', 'account', {
+    type: 'gl_accounts', accounts: [
+      '8230000', '8231100', '8231200', '8231300', '8231400', '8231500',
+    ], departments: itDept,
+  }, { indent: 1 }),
+  line('total-other', 'TOTAL OTHER EXPENSES', 'total', {
+    type: 'sum', lineIds: ['exp-systems', 'exp-telecom', 'exp-support'],
+  }, { bold: true, underline: 'single' }),
+  line('blank-2', '', 'blank', { type: 'none' }),
+
+  line('total-it', 'TOTAL INFORMATION & TECHNOLOGY', 'total', {
+    type: 'sum', lineIds: ['total-labor', 'total-other'],
+  }, { bold: true, underline: 'double' }),
+  line('it-pct', '  % of Total Revenue', 'ratio', {
+    type: 'ratio', numerator: 'total-it', denominator: 'total-hotel-revenue', format: 'percentage',
+  }, { indent: 1 }),
+];
+
+export const INFORMATION_TECHNOLOGY: USALIReportDefinition = {
+  id: 'usali-it',
+  name: 'Information & Technology',
+  description: 'USALI 12th Edition IT Schedule — Labor, systems, telecommunications, and IT support expenses.',
+  usaliSection: USALISection.UNDISTRIBUTED_IT,
+  departments: itDept,
+  lines: IT_LINES,
+  columns: SUMMARY_OPERATING_STATEMENT.columns,
+};
+
 // ─── Sales & Marketing ───────────────────────────────────────────────────────
 
 const smDept = [USALIDepartment.SALES_AND_MARKETING];
@@ -132,46 +203,56 @@ const smDept = [USALIDepartment.SALES_AND_MARKETING];
 const SM_LINES: ReportLineItem[] = [
   line('header-labor', 'LABOR COSTS', 'header', { type: 'none' }, { bold: true }),
   line('labor-salaries', '  Salaries & Wages', 'account', {
-    type: 'gl_range', from: '6000', to: '6070', departments: smDept,
-  }, { indent: 1 }),
-  line('labor-benefits', '  Benefits', 'account', {
-    type: 'gl_range', from: '6100', to: '6170', departments: smDept,
+    type: 'gl_range', from: '6110000', to: '6610000', departments: smDept,
   }, { indent: 1 }),
   line('total-labor', 'TOTAL LABOR', 'total', {
-    type: 'sum', lineIds: ['labor-salaries', 'labor-benefits'],
+    type: 'sum', lineIds: ['labor-salaries'],
   }, { bold: true, underline: 'single' }),
   line('blank-1', '', 'blank', { type: 'none' }),
 
   line('header-other', 'OTHER EXPENSES', 'header', { type: 'none' }, { bold: true }),
-  line('exp-digital', '  Advertising - Digital', 'account', {
-    type: 'gl_accounts', accounts: ['7300'], departments: smDept,
-  }, { indent: 1 }),
-  line('exp-print', '  Advertising - Print', 'account', {
-    type: 'gl_accounts', accounts: ['7310'], departments: smDept,
-  }, { indent: 1 }),
-  line('exp-other-adv', '  Advertising - Other', 'account', {
-    type: 'gl_accounts', accounts: ['7320'], departments: smDept,
-  }, { indent: 1 }),
-  line('exp-agency', '  Agency Fees', 'account', {
-    type: 'gl_accounts', accounts: ['7330'], departments: smDept,
-  }, { indent: 1 }),
-  line('exp-loyalty', '  Loyalty Program', 'account', {
-    type: 'gl_accounts', accounts: ['7340'], departments: smDept,
+  line('exp-digital', '  Digital Advertising', 'account', {
+    type: 'gl_accounts', accounts: [
+      '8310000', '8311100', '8311110', '8311120', '8311130', '8311140',
+      '8311150', '8311160', '8311170', '8311180', '8311190', '8311200',
+      '8311210', '8311220', '8311230', '8311240',
+    ], departments: smDept,
   }, { indent: 1 }),
   line('exp-pr', '  Public Relations', 'account', {
-    type: 'gl_accounts', accounts: ['7350'], departments: smDept,
+    type: 'gl_accounts', accounts: [
+      '8320000', '8321100', '8321200', '8321300', '8321400', '8321500',
+      '8321600', '8321700', '8321800', '8321900',
+    ], departments: smDept,
   }, { indent: 1 }),
-  line('exp-promotions', '  Sales Promotions', 'account', {
-    type: 'gl_accounts', accounts: ['7360'], departments: smDept,
+  line('exp-creative', '  Creative & Content', 'account', {
+    type: 'gl_accounts', accounts: [
+      '8330000', '8331100', '8331200', '8331300', '8331400', '8331500',
+      '8331600', '8331700', '8331800', '8331900', '8332000', '8332100',
+    ], departments: smDept,
   }, { indent: 1 }),
-  line('exp-direct', '  Direct Marketing', 'account', {
-    type: 'gl_accounts', accounts: ['7370'], departments: smDept,
+  line('exp-revmgmt', '  Revenue Management', 'account', {
+    type: 'gl_accounts', accounts: [
+      '8340000', '8341100', '8341200', '8341300', '8341400', '8341500',
+      '8341600', '8341700', '8341800', '8341900',
+    ], departments: smDept,
   }, { indent: 1 }),
-  line('exp-travel', '  Travel & Entertainment', 'account', {
-    type: 'gl_accounts', accounts: ['7295'], departments: smDept,
+  line('exp-promotions', '  Promotions & Loyalty', 'account', {
+    type: 'gl_accounts', accounts: [
+      '8350000', '8351100', '8351200', '8351300', '8351400', '8351500',
+      '8351600', '8351700',
+    ], departments: smDept,
+  }, { indent: 1 }),
+  line('exp-sales-office', '  Sales Office', 'account', {
+    type: 'gl_accounts', accounts: [
+      '8360000', '8361100', '8361200', '8361300', '8361400', '8361500',
+      '8361600', '8361700', '8361800',
+    ], departments: smDept,
   }, { indent: 1 }),
   line('total-other', 'TOTAL OTHER EXPENSES', 'total', {
-    type: 'sum', lineIds: ['exp-digital', 'exp-print', 'exp-other-adv', 'exp-agency', 'exp-loyalty', 'exp-pr', 'exp-promotions', 'exp-direct', 'exp-travel'],
+    type: 'sum', lineIds: [
+      'exp-digital', 'exp-pr', 'exp-creative', 'exp-revmgmt',
+      'exp-promotions', 'exp-sales-office',
+    ],
   }, { bold: true, underline: 'single' }),
   line('blank-2', '', 'blank', { type: 'none' }),
 
@@ -186,7 +267,7 @@ const SM_LINES: ReportLineItem[] = [
 export const SALES_MARKETING: USALIReportDefinition = {
   id: 'usali-sm',
   name: 'Sales & Marketing',
-  description: 'USALI 12th Edition Sales & Marketing Schedule — Labor, advertising, loyalty, and promotional expenses.',
+  description: 'USALI 12th Edition Sales & Marketing Schedule — Labor, advertising, promotions, and sales office expenses.',
   usaliSection: USALISection.UNDISTRIBUTED_SALES,
   departments: smDept,
   lines: SM_LINES,
@@ -200,52 +281,33 @@ const pomDept = [USALIDepartment.PROPERTY_OPERATIONS];
 const POM_LINES: ReportLineItem[] = [
   line('header-labor', 'LABOR COSTS', 'header', { type: 'none' }, { bold: true }),
   line('labor-salaries', '  Salaries & Wages', 'account', {
-    type: 'gl_range', from: '6000', to: '6070', departments: pomDept,
-  }, { indent: 1 }),
-  line('labor-benefits', '  Benefits', 'account', {
-    type: 'gl_range', from: '6100', to: '6170', departments: pomDept,
+    type: 'gl_range', from: '6110000', to: '6610000', departments: pomDept,
   }, { indent: 1 }),
   line('total-labor', 'TOTAL LABOR', 'total', {
-    type: 'sum', lineIds: ['labor-salaries', 'labor-benefits'],
+    type: 'sum', lineIds: ['labor-salaries'],
   }, { bold: true, underline: 'single' }),
   line('blank-1', '', 'blank', { type: 'none' }),
 
   line('header-other', 'OTHER EXPENSES', 'header', { type: 'none' }, { bold: true }),
-  line('exp-building', '  Building Maintenance', 'account', {
-    type: 'gl_accounts', accounts: ['7400'], departments: pomDept,
+  line('exp-repairs', '  Repairs & Maintenance', 'account', {
+    type: 'gl_accounts', accounts: [
+      '8410000', '8411100', '8411200', '8411300', '8411400', '8411500',
+      '8411600',
+    ], departments: pomDept,
   }, { indent: 1 }),
-  line('exp-elevator', '  Elevator Maintenance', 'account', {
-    type: 'gl_accounts', accounts: ['7410'], departments: pomDept,
+  line('exp-supplies', '  Maintenance Supplies', 'account', {
+    type: 'gl_accounts', accounts: [
+      '8420000', '8421100', '8421200', '8421300', '8421400', '8421500',
+    ], departments: pomDept,
   }, { indent: 1 }),
-  line('exp-electrical', '  Electrical & Mechanical', 'account', {
-    type: 'gl_accounts', accounts: ['7420'], departments: pomDept,
-  }, { indent: 1 }),
-  line('exp-supplies', '  Engineering Supplies', 'account', {
-    type: 'gl_accounts', accounts: ['7430'], departments: pomDept,
-  }, { indent: 1 }),
-  line('exp-flooring', '  Floor Covering', 'account', {
-    type: 'gl_accounts', accounts: ['7440'], departments: pomDept,
-  }, { indent: 1 }),
-  line('exp-furniture', '  Furniture Maintenance', 'account', {
-    type: 'gl_accounts', accounts: ['7450'], departments: pomDept,
-  }, { indent: 1 }),
-  line('exp-grounds', '  Grounds & Landscaping', 'account', {
-    type: 'gl_accounts', accounts: ['7460'], departments: pomDept,
-  }, { indent: 1 }),
-  line('exp-hvac', '  HVAC Maintenance', 'account', {
-    type: 'gl_accounts', accounts: ['7470'], departments: pomDept,
-  }, { indent: 1 }),
-  line('exp-painting', '  Painting & Decorating', 'account', {
-    type: 'gl_accounts', accounts: ['7480'], departments: pomDept,
-  }, { indent: 1 }),
-  line('exp-plumbing', '  Plumbing', 'account', {
-    type: 'gl_accounts', accounts: ['7490'], departments: pomDept,
-  }, { indent: 1 }),
-  line('exp-pool', '  Swimming Pool', 'account', {
-    type: 'gl_accounts', accounts: ['7495'], departments: pomDept,
+  line('exp-contracted', '  Contracted Maintenance', 'account', {
+    type: 'gl_accounts', accounts: [
+      '8430000', '8431100', '8431200', '8431300', '8431400', '8431500',
+      '8431600', '8431700',
+    ], departments: pomDept,
   }, { indent: 1 }),
   line('total-other', 'TOTAL OTHER EXPENSES', 'total', {
-    type: 'sum', lineIds: ['exp-building', 'exp-elevator', 'exp-electrical', 'exp-supplies', 'exp-flooring', 'exp-furniture', 'exp-grounds', 'exp-hvac', 'exp-painting', 'exp-plumbing', 'exp-pool'],
+    type: 'sum', lineIds: ['exp-repairs', 'exp-supplies', 'exp-contracted'],
   }, { bold: true, underline: 'single' }),
   line('blank-2', '', 'blank', { type: 'none' }),
 
@@ -260,7 +322,7 @@ const POM_LINES: ReportLineItem[] = [
 export const PROPERTY_OPERATIONS: USALIReportDefinition = {
   id: 'usali-pom',
   name: 'Property Operations & Maintenance',
-  description: 'USALI 12th Edition POM Schedule — Engineering labor and building/grounds maintenance expenses.',
+  description: 'USALI 12th Edition POM Schedule — Engineering labor, repairs, supplies, and contracted maintenance.',
   usaliSection: USALISection.UNDISTRIBUTED_POM,
   departments: pomDept,
   lines: POM_LINES,
@@ -274,22 +336,31 @@ const utilDept = [USALIDepartment.UTILITIES];
 const UTIL_LINES: ReportLineItem[] = [
   line('header-util', 'UTILITY EXPENSES', 'header', { type: 'none' }, { bold: true }),
   line('exp-electricity', '  Electricity', 'account', {
-    type: 'gl_accounts', accounts: ['7500'], departments: utilDept,
+    type: 'gl_accounts', accounts: ['8511100'], departments: utilDept,
   }, { indent: 1 }),
-  line('exp-gas', '  Gas', 'account', {
-    type: 'gl_accounts', accounts: ['7510'], departments: utilDept,
+  line('exp-gas', '  Natural Gas', 'account', {
+    type: 'gl_accounts', accounts: ['8511200'], departments: utilDept,
   }, { indent: 1 }),
-  line('exp-water', '  Water & Sewer', 'account', {
-    type: 'gl_accounts', accounts: ['7520'], departments: utilDept,
+  line('exp-water', '  Water', 'account', {
+    type: 'gl_accounts', accounts: ['8521100'], departments: utilDept,
   }, { indent: 1 }),
-  line('exp-fuel', '  Oil/Fuel', 'account', {
-    type: 'gl_accounts', accounts: ['7530'], departments: utilDept,
+  line('exp-sewer', '  Sewer', 'account', {
+    type: 'gl_accounts', accounts: ['8521200'], departments: utilDept,
   }, { indent: 1 }),
-  line('exp-waste', '  Waste Removal', 'account', {
-    type: 'gl_accounts', accounts: ['7540'], departments: utilDept,
+  line('exp-trash', '  Trash Removal', 'account', {
+    type: 'gl_accounts', accounts: ['8531100'], departments: utilDept,
+  }, { indent: 1 }),
+  line('exp-recycling', '  Recycling', 'account', {
+    type: 'gl_accounts', accounts: ['8531200'], departments: utilDept,
+  }, { indent: 1 }),
+  line('exp-grease', '  Grease Removal', 'account', {
+    type: 'gl_accounts', accounts: ['8531300'], departments: utilDept,
   }, { indent: 1 }),
   line('total-util', 'TOTAL UTILITIES', 'total', {
-    type: 'sum', lineIds: ['exp-electricity', 'exp-gas', 'exp-water', 'exp-fuel', 'exp-waste'],
+    type: 'sum', lineIds: [
+      'exp-electricity', 'exp-gas', 'exp-water', 'exp-sewer',
+      'exp-trash', 'exp-recycling', 'exp-grease',
+    ],
   }, { bold: true, underline: 'double' }),
   line('util-pct', '  % of Total Revenue', 'ratio', {
     type: 'ratio', numerator: 'total-util', denominator: 'total-hotel-revenue', format: 'percentage',
@@ -302,68 +373,9 @@ const UTIL_LINES: ReportLineItem[] = [
 export const UTILITIES: USALIReportDefinition = {
   id: 'usali-util',
   name: 'Utilities',
-  description: 'USALI 12th Edition Utilities Schedule — Electricity, gas, water, fuel, and waste removal.',
+  description: 'USALI 12th Edition Utilities Schedule — Electricity, gas, water, sewer, trash, recycling, and grease removal.',
   usaliSection: USALISection.UNDISTRIBUTED_UTILITIES,
   departments: utilDept,
   lines: UTIL_LINES,
-  columns: SUMMARY_OPERATING_STATEMENT.columns,
-};
-
-// ─── Information & Telecommunications ────────────────────────────────────────
-
-const itDept = [USALIDepartment.INFORMATION_TECHNOLOGY];
-
-const IT_LINES: ReportLineItem[] = [
-  line('header-labor', 'LABOR COSTS', 'header', { type: 'none' }, { bold: true }),
-  line('labor-salaries', '  Salaries & Wages', 'account', {
-    type: 'gl_range', from: '6000', to: '6070', departments: itDept,
-  }, { indent: 1 }),
-  line('labor-benefits', '  Benefits', 'account', {
-    type: 'gl_range', from: '6100', to: '6170', departments: itDept,
-  }, { indent: 1 }),
-  line('total-labor', 'TOTAL LABOR', 'total', {
-    type: 'sum', lineIds: ['labor-salaries', 'labor-benefits'],
-  }, { bold: true, underline: 'single' }),
-  line('blank-1', '', 'blank', { type: 'none' }),
-
-  line('header-other', 'OTHER EXPENSES', 'header', { type: 'none' }, { bold: true }),
-  line('exp-software', '  Software Licenses & SaaS', 'account', {
-    type: 'gl_accounts', accounts: ['7600'], departments: itDept,
-  }, { indent: 1 }),
-  line('exp-hardware', '  Hardware Maintenance', 'account', {
-    type: 'gl_accounts', accounts: ['7610'], departments: itDept,
-  }, { indent: 1 }),
-  line('exp-internet', '  Internet & Connectivity', 'account', {
-    type: 'gl_accounts', accounts: ['7620'], departments: itDept,
-  }, { indent: 1 }),
-  line('exp-pms', '  PMS/POS Systems', 'account', {
-    type: 'gl_accounts', accounts: ['7630'], departments: itDept,
-  }, { indent: 1 }),
-  line('exp-security', '  Cybersecurity', 'account', {
-    type: 'gl_accounts', accounts: ['7640'], departments: itDept,
-  }, { indent: 1 }),
-  line('exp-consulting', '  IT Consulting', 'account', {
-    type: 'gl_accounts', accounts: ['7650'], departments: itDept,
-  }, { indent: 1 }),
-  line('total-other', 'TOTAL OTHER EXPENSES', 'total', {
-    type: 'sum', lineIds: ['exp-software', 'exp-hardware', 'exp-internet', 'exp-pms', 'exp-security', 'exp-consulting'],
-  }, { bold: true, underline: 'single' }),
-  line('blank-2', '', 'blank', { type: 'none' }),
-
-  line('total-it', 'TOTAL INFORMATION & TELECOMMUNICATIONS', 'total', {
-    type: 'sum', lineIds: ['total-labor', 'total-other'],
-  }, { bold: true, underline: 'double' }),
-  line('it-pct', '  % of Total Revenue', 'ratio', {
-    type: 'ratio', numerator: 'total-it', denominator: 'total-hotel-revenue', format: 'percentage',
-  }, { indent: 1 }),
-];
-
-export const INFORMATION_TECHNOLOGY: USALIReportDefinition = {
-  id: 'usali-it',
-  name: 'Information & Telecommunications',
-  description: 'USALI 12th Edition IT Schedule — Labor, software, hardware, connectivity, and cybersecurity expenses.',
-  usaliSection: USALISection.UNDISTRIBUTED_IT,
-  departments: itDept,
-  lines: IT_LINES,
   columns: SUMMARY_OPERATING_STATEMENT.columns,
 };

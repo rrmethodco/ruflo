@@ -24,6 +24,9 @@ import { SchedulerEngine } from './engines/scheduler-engine.js';
 import { PaceMonitor } from './engines/pace-monitor.js';
 import { ToastAdapter } from './integrations/toast-adapter.js';
 import { ResyAdapter } from './integrations/resy-adapter.js';
+import { SharePointAdapter } from './integrations/sharepoint-adapter.js';
+import { ExcelAdapter } from './integrations/excel-adapter.js';
+import { SharePointWebhookListener } from './integrations/sharepoint-webhook.js';
 import { createHelixoTools } from './mcp-tools.js';
 
 // ============================================================================
@@ -44,6 +47,9 @@ export class HelixoPlugin {
   readonly paceMonitor: PaceMonitor;
   readonly toast?: ToastAdapter;
   readonly resy?: ResyAdapter;
+  readonly sharepoint?: SharePointAdapter;
+  readonly excel?: ExcelAdapter;
+  readonly webhookListener?: SharePointWebhookListener;
 
   constructor(config: HelixoConfig, logger?: Logger) {
     this.config = config;
@@ -60,6 +66,23 @@ export class HelixoPlugin {
     if (config.resy) {
       this.resy = new ResyAdapter(config.resy, this.logger);
     }
+    if (config.sharepoint) {
+      this.sharepoint = new SharePointAdapter(config.sharepoint, this.logger);
+      if (config.sharepoint.webhookUrl && config.columnMapping) {
+        this.webhookListener = new SharePointWebhookListener(
+          config.sharepoint,
+          {
+            notificationUrl: config.sharepoint.webhookUrl,
+            clientState: config.sharepoint.webhookSecret,
+            columnMapping: config.columnMapping,
+          },
+          this.logger,
+        );
+      }
+    }
+    if (config.excel) {
+      this.excel = new ExcelAdapter(config.excel, this.logger);
+    }
 
     this.logger.info('Helixo plugin initialized', {
       restaurant: config.restaurant.name,
@@ -67,6 +90,8 @@ export class HelixoPlugin {
       seats: config.restaurant.seats,
       toastEnabled: !!config.toast,
       resyEnabled: !!config.resy,
+      sharepointEnabled: !!config.sharepoint,
+      excelEnabled: !!config.excel,
     });
   }
 
@@ -86,6 +111,11 @@ export { SchedulerEngine } from './engines/scheduler-engine.js';
 export { PaceMonitor } from './engines/pace-monitor.js';
 export { ToastAdapter } from './integrations/toast-adapter.js';
 export { ResyAdapter } from './integrations/resy-adapter.js';
+export { SharePointAdapter } from './integrations/sharepoint-adapter.js';
+export { ExcelAdapter } from './integrations/excel-adapter.js';
+export { SharePointWebhookListener } from './integrations/sharepoint-webhook.js';
+export type { WebhookPayload, ChangeHandler } from './integrations/sharepoint-webhook.js';
+export type { XlsxParser } from './integrations/excel-adapter.js';
 export { createHelixoTools } from './mcp-tools.js';
 
 // Re-export all types

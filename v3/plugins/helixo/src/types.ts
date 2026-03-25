@@ -597,6 +597,79 @@ export interface ResyPacingEntry {
 }
 
 // ============================================================================
+// Integration Types - SharePoint / Excel
+// ============================================================================
+
+export interface SharePointConfig {
+  tenantId: string;
+  clientId: string;
+  clientSecret: string;
+  siteId: string;                // SharePoint site ID
+  driveId?: string;              // OneDrive/SharePoint drive ID (auto-discovered if omitted)
+  listId?: string;               // SharePoint list ID for structured data
+  excelFileItemId?: string;      // Item ID of Excel file in SharePoint
+  worksheetName?: string;        // Specific worksheet to read (default: first sheet)
+  cellRange?: string;            // Cell range to read (e.g., "A1:Z100", default: usedRange)
+  graphBaseUrl?: string;         // Microsoft Graph API base (default: https://graph.microsoft.com/v1.0)
+  pollIntervalMs?: number;       // Polling interval for change detection (default: 120000)
+  webhookUrl?: string;           // Public URL for Graph webhook notifications
+  webhookSecret?: string;        // Shared secret for webhook validation
+}
+
+export interface ExcelFileConfig {
+  filePath: string;              // Path to local .xlsx or .csv file
+  worksheetName?: string;        // Specific worksheet (default: first sheet)
+  headerRow?: number;            // Row number containing headers (default: 1)
+  dataStartRow?: number;         // First data row (default: 2)
+  watchForChanges?: boolean;     // Enable file watcher (default: false)
+  pollIntervalMs?: number;       // Fallback poll interval if watch not supported (default: 60000)
+}
+
+/** Column mapping tells the adapter how to extract Helixo data from spreadsheet columns */
+export interface SpreadsheetColumnMapping {
+  date?: string;                 // Column header for date
+  mealPeriod?: string;           // Column header for meal period
+  netSales?: string;             // Column header for net sales
+  grossSales?: string;           // Column header for gross sales
+  covers?: string;               // Column header for cover count
+  checkCount?: string;           // Column header for check count
+  avgCheck?: string;             // Column header for average check
+  laborHours?: string;           // Column header for labor hours
+  laborCost?: string;            // Column header for labor cost
+  employeeName?: string;         // Column header for employee name
+  role?: string;                 // Column header for staff role
+  hourlyRate?: string;           // Column header for hourly rate
+  budgetSales?: string;          // Column header for budget target
+}
+
+export type SpreadsheetDataType = 'sales' | 'labor' | 'staff' | 'budget';
+
+export interface SharePointChangeNotification {
+  subscriptionId: string;
+  changeType: 'created' | 'updated' | 'deleted';
+  resource: string;
+  resourceData: {
+    id: string;
+    type: string;
+  };
+  tenantId: string;
+  clientState?: string;
+  timestamp: string;
+}
+
+export interface SharePointSubscription {
+  id: string;
+  resource: string;
+  changeType: string;
+  notificationUrl: string;
+  expirationDateTime: string;
+  clientState?: string;
+}
+
+/** Parsed spreadsheet row — keys are column headers, values are cell contents */
+export type SpreadsheetRow = Record<string, string | number | boolean | null>;
+
+// ============================================================================
 // Helixo Configuration
 // ============================================================================
 
@@ -608,6 +681,9 @@ export interface HelixoConfig {
   paceMonitor: PaceMonitorConfig;
   toast?: ToastConfig;
   resy?: ResyConfig;
+  sharepoint?: SharePointConfig;
+  excel?: ExcelFileConfig;
+  columnMapping?: SpreadsheetColumnMapping;
 }
 
 export interface ForecastConfig {

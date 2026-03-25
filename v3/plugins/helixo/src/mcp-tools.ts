@@ -11,6 +11,7 @@ import {
   type HistoricalSalesRecord,
   type MCPTool,
   type MCPToolResult,
+  type SpreadsheetColumnMapping,
   type ToolContext,
   type WeatherCondition,
   ForecastRequestSchema,
@@ -22,6 +23,8 @@ import { ForecastEngine } from './engines/forecast-engine.js';
 import { LaborEngine } from './engines/labor-engine.js';
 import { SchedulerEngine } from './engines/scheduler-engine.js';
 import { PaceMonitor } from './engines/pace-monitor.js';
+import { SharePointAdapter } from './integrations/sharepoint-adapter.js';
+import { ExcelAdapter } from './integrations/excel-adapter.js';
 
 // ============================================================================
 // Input Validation Schemas (tool-level)
@@ -100,7 +103,7 @@ function validateInput<T>(schema: z.ZodType<T>, input: unknown, start: number): 
 // ============================================================================
 
 export function createHelixoTools(config: HelixoConfig): MCPTool[] {
-  return [
+  const tools: MCPTool[] = [
     createForecastDailyTool(config),
     createForecastWeeklyTool(config),
     createLaborPlanTool(config),
@@ -110,6 +113,19 @@ export function createHelixoTools(config: HelixoConfig): MCPTool[] {
     createForecastComparisonTool(config),
     createLaborCostAnalysisTool(config),
   ];
+
+  // Add SharePoint/Excel tools when configured
+  if (config.sharepoint) {
+    tools.push(createSharePointSyncTool(config));
+  }
+  if (config.excel) {
+    tools.push(createExcelSyncTool(config));
+  }
+  if (config.sharepoint || config.excel) {
+    tools.push(createDataSourceStatusTool(config));
+  }
+
+  return tools;
 }
 
 // --------------------------------------------------------------------------
@@ -476,6 +492,184 @@ function createForecastComparisonTool(config: HelixoConfig): MCPTool {
       } catch (err) {
         return { success: false, error: String(err), metadata: { durationMs: Date.now() - start } };
       }
+    },
+  };
+}
+
+// --------------------------------------------------------------------------
+// SharePoint / Excel Tools
+// --------------------------------------------------------------------------
+
+const ColumnMappingSchema = z.object({
+  date: z.string().optional(),
+  mealPeriod: z.string().optional(),
+  netSales: z.string().optional(),
+  grossSales: z.string().optional(),
+  covers: z.string().optional(),
+  checkCount: z.string().optional(),
+  avgCheck: z.string().optional(),
+  laborHours: z.string().optional(),
+  laborCost: z.string().optional(),
+  employeeName: z.string().optional(),
+  role: z.string().optional(),
+  hourlyRate: z.string().optional(),
+  budgetSales: z.string().optional(),
+});
+
+const SharePointSyncInputSchema = z.object({
+  dataType: z.enum(['sales', 'labor']).default('sales'),
+  worksheetName: z.string().optional(),
+  columnMapping: ColumnMappingSchema.optional(),
+  businessDate: DateSchema.optional(),
+});
+
+const ExcelSyncInputSchema = z.object({
+  dataType: z.enum(['sales', 'labor']).default('sales'),
+  columnMapping: ColumnMappingSchema.optional(),
+  businessDate: DateSchema.optional(),
+});
+
+function createSharePointSyncTool(config: HelixoConfig): MCPTool {
+  return {
+    name: 'helixo_sharepoint_sync',
+    description: 'Sync data from a SharePoint-hosted Excel workbook or list. Fetches the latest data from Microsoft Graph API and transforms it into sales or labor records for Helixo engines.',
+    category: 'helixo',
+    version: '3.5.0',
+    tags: ['sharepoint', 'excel', 'sync', 'microsoft'],
+    cacheable: false,
+    cacheTTL: 0,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dataType: { type: 'string', description: 'Type of data to sync: "sales" or "labor"' },
+        worksheetName: { type: 'string', description: 'Worksheet name to read (optional)' },
+        columnMapping: { type: 'object', description: 'Column header mapping (optional, uses config defaults)' },
+        businessDate: { type: 'string', description: 'Business date for labor data (YYYY-MM-DD)' },
+      },
+      required: [],
+    },
+    handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
+      const start = Date.now();
+      try {
+        if (!config.sharepoint) {
+          return { success: false, error: 'SharePoint not configured', metadata: { durationMs: Date.now() - start } };
+        }
+
+        const v = validateInput(SharePointSyncInputSchema, input, start);
+        if ('error' in v) return v.error;
+
+        const adapter = new SharePointAdapter(config.sharepoint);
+        const mapping = (v.data.columnMapping ?? config.columnMapping ?? {}) as SpreadsheetColumnMapping;
+        const rows = await adapter.fetchExcelRows(v.data.worksheetName);
+
+        if (v.data.dataType === 'labor') {
+          const date = v.data.businessDate ?? new Date().toISOString().slice(0, 10);
+          const labor = adapter.rowsToLaborData(rows, mapping, date);
+          return { success: true, data: { type: 'labor', recordCount: labor.entries.length, labor }, metadata: { durationMs: Date.now() - start } };
+        }
+
+        const sales = adapter.rowsToSalesRecords(rows, mapping);
+        return { success: true, data: { type: 'sales', recordCount: sales.length, sales }, metadata: { durationMs: Date.now() - start } };
+      } catch (err) {
+        return { success: false, error: String(err), metadata: { durationMs: Date.now() - start } };
+      }
+    },
+  };
+}
+
+function createExcelSyncTool(config: HelixoConfig): MCPTool {
+  return {
+    name: 'helixo_excel_sync',
+    description: 'Sync data from a local Excel (.xlsx) or CSV file. Reads the file and transforms it into sales or labor records for Helixo engines.',
+    category: 'helixo',
+    version: '3.5.0',
+    tags: ['excel', 'csv', 'sync', 'local'],
+    cacheable: false,
+    cacheTTL: 0,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dataType: { type: 'string', description: 'Type of data to sync: "sales" or "labor"' },
+        columnMapping: { type: 'object', description: 'Column header mapping (optional, uses config defaults)' },
+        businessDate: { type: 'string', description: 'Business date for labor data (YYYY-MM-DD)' },
+      },
+      required: [],
+    },
+    handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
+      const start = Date.now();
+      try {
+        if (!config.excel) {
+          return { success: false, error: 'Excel file not configured', metadata: { durationMs: Date.now() - start } };
+        }
+
+        const v = validateInput(ExcelSyncInputSchema, input, start);
+        if ('error' in v) return v.error;
+
+        const adapter = new ExcelAdapter(config.excel);
+        const mapping = (v.data.columnMapping ?? config.columnMapping ?? {}) as SpreadsheetColumnMapping;
+        const rows = await adapter.readRows();
+
+        if (v.data.dataType === 'labor') {
+          const date = v.data.businessDate ?? new Date().toISOString().slice(0, 10);
+          const labor = adapter.rowsToLaborData(rows, mapping, date);
+          return { success: true, data: { type: 'labor', recordCount: labor.entries.length, labor }, metadata: { durationMs: Date.now() - start } };
+        }
+
+        const sales = adapter.rowsToSalesRecords(rows, mapping);
+        return { success: true, data: { type: 'sales', recordCount: sales.length, sales }, metadata: { durationMs: Date.now() - start } };
+      } catch (err) {
+        return { success: false, error: String(err), metadata: { durationMs: Date.now() - start } };
+      }
+    },
+  };
+}
+
+function createDataSourceStatusTool(config: HelixoConfig): MCPTool {
+  return {
+    name: 'helixo_datasource_status',
+    description: 'Check the status and last-modified time of connected data sources (SharePoint, Excel). Use to verify connectivity and detect whether data has changed.',
+    category: 'helixo',
+    version: '3.5.0',
+    tags: ['status', 'datasource', 'connectivity'],
+    cacheable: false,
+    cacheTTL: 0,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sinceTimestamp: { type: 'string', description: 'ISO timestamp to check for changes since (optional)' },
+      },
+      required: [],
+    },
+    handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
+      const start = Date.now();
+      const since = (input.sinceTimestamp as string) ?? new Date(Date.now() - 3600_000).toISOString();
+      const sources: Record<string, unknown> = {};
+
+      if (config.sharepoint) {
+        try {
+          const adapter = new SharePointAdapter(config.sharepoint);
+          const result = await adapter.hasFileChanged(since);
+          sources.sharepoint = { connected: true, ...result };
+        } catch (err) {
+          sources.sharepoint = { connected: false, error: String(err) };
+        }
+      }
+
+      if (config.excel) {
+        try {
+          const adapter = new ExcelAdapter(config.excel);
+          const result = await adapter.hasFileChanged(since);
+          sources.excel = { connected: true, ...result };
+        } catch (err) {
+          sources.excel = { connected: false, error: String(err) };
+        }
+      }
+
+      return {
+        success: true,
+        data: { sources, checkedAt: new Date().toISOString(), since },
+        metadata: { durationMs: Date.now() - start },
+      };
     },
   };
 }

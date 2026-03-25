@@ -1,0 +1,95 @@
+{
+  "name": "@claude-flow/plugin-helixo",
+  "version": "3.5.0-alpha.1",
+  "description": "Advanced restaurant revenue forecasting and labor scheduling optimization engine. Proprietary multi-variable forecasting, constraint-based labor optimization, auto-scheduling, and real-time pace monitoring with Toast POS and RESY integrations.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./tools": {
+      "import": "./dist/mcp-tools.js",
+      "types": "./dist/mcp-tools.d.ts"
+    },
+    "./engines/forecast": {
+      "import": "./dist/engines/forecast-engine.js",
+      "types": "./dist/engines/forecast-engine.d.ts"
+    },
+    "./engines/labor": {
+      "import": "./dist/engines/labor-engine.js",
+      "types": "./dist/engines/labor-engine.d.ts"
+    },
+    "./engines/scheduler": {
+      "import": "./dist/engines/scheduler-engine.js",
+      "types": "./dist/engines/scheduler-engine.d.ts"
+    },
+    "./engines/pace": {
+      "import": "./dist/engines/pace-monitor.js",
+      "types": "./dist/engines/pace-monitor.d.ts"
+    },
+    "./integrations/toast": {
+      "import": "./dist/integrations/toast-adapter.js",
+      "types": "./dist/integrations/toast-adapter.d.ts"
+    },
+    "./integrations/resy": {
+      "import": "./dist/integrations/resy-adapter.js",
+      "types": "./dist/integrations/resy-adapter.d.ts"
+    },
+    "./types": {
+      "import": "./dist/types.js",
+      "types": "./dist/types.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "plugin.yaml",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run clean && npm run build && npm run typecheck"
+  },
+  "publishConfig": {
+    "access": "public",
+    "tag": "v3alpha"
+  },
+  "keywords": [
+    "claude-flow",
+    "helixo",
+    "restaurant",
+    "revenue-forecasting",
+    "labor-optimization",
+    "auto-scheduling",
+    "pace-monitoring",
+    "toast-pos",
+    "resy",
+    "workforce-management",
+    "mcp"
+  ],
+  "author": "rUv",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rrmethodco/ruflo.git",
+    "directory": "v3/plugins/helixo"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.0.0"
+  }
+}

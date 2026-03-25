@@ -1,0 +1,26 @@
+{
+  "name": "@ruflo/usali-reporting",
+  "version": "1.0.0",
+  "description": "USALI 12th Edition Financial Reporting Package for Sage Intacct — Complete report definitions, GL mappings, KPIs, and export tools",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "usali",
+    "hospitality",
+    "hotel-accounting",
+    "sage-intacct",
+    "financial-reporting",
+    "lodging-industry",
+    "uniform-system-of-accounts"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

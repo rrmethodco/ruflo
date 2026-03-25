@@ -1,187 +1,187 @@
 "use client";
 
-import { currency, percent, number } from "@/lib/format";
+import { currency, number } from "@/lib/format";
 
-/* ---------- Demo data for a 120-seat casual dining restaurant ---------- */
+/* ---------- Data ---------- */
 
-const today = new Date().toLocaleDateString("en-US", {
-  weekday: "long",
-  month: "long",
-  day: "numeric",
-  year: "numeric",
-});
-
-const kpis = {
-  revenue: { value: 14_820, lastWeek: 13_650, label: "Projected Revenue" },
-  covers: { value: 274, lastWeek: 258, label: "Projected Covers" },
-  laborPct: { value: 28.4, target: 30, label: "Labor Cost %" },
-  pace: { status: "Ahead", delta: 8, label: "Pace Status" },
-};
-
-const mealPeriods = [
-  { name: "Lunch", revenue: 5_340, pct: 36 },
-  { name: "Dinner", revenue: 9_480, pct: 64 },
+const kpis = [
+  { label: "Total Revenue", value: "$14,820", delta: 5.3, up: true, prior: "$14,072", period: "Last 7 Days" },
+  { label: "Covers", value: "1,892", delta: 3.1, up: true, prior: "1,835", period: "Last 7 Days" },
+  { label: "Avg Check", value: "$48.20", delta: 2.1, up: false, prior: "$49.23", period: "Last 7 Days" },
+  { label: "Labor Cost %", value: "28.4%", delta: 1.8, up: true, prior: "27.9%", period: "Last 7 Days", invertColor: true },
+  { label: "Rev/Labor Hour", value: "$52.30", delta: 4.2, up: true, prior: "$50.19", period: "Last 7 Days" },
 ];
 
-const staffing = [
-  { role: "FOH", lunchHeads: 6, dinnerHeads: 10, hours: 98, cost: 2_156 },
-  { role: "BOH", lunchHeads: 4, dinnerHeads: 7, hours: 74, cost: 1_998 },
+const chartDays = [
+  { day: "Mon", lunch: 1420, dinner: 2380 },
+  { day: "Tue", lunch: 1280, dinner: 2100 },
+  { day: "Wed", lunch: 1510, dinner: 2540 },
+  { day: "Thu", lunch: 1350, dinner: 2290 },
+  { day: "Fri", lunch: 1680, dinner: 3120 },
+  { day: "Sat", lunch: 1920, dinner: 3480 },
+  { day: "Sun", lunch: 1560, dinner: 2640 },
 ];
 
-const alerts = [
-  { level: "warn", text: "2 open shifts for Friday dinner \u2014 no applicants yet" },
-  { level: "warn", text: "Server overtime projected: Sarah M. at 42 hrs this week" },
-  { level: "info", text: "Dinner pace 8% ahead of forecast \u2014 consider extending shifts" },
-  { level: "ok", text: "All prep lists completed on time today" },
+const maxRevenue = Math.max(...chartDays.map((d) => d.lunch + d.dinner));
+
+const bottomMetrics = [
+  { label: "Avg Turn Time", value: "52 min", prior: "48 min", delta: 8.3, up: true, invertColor: true, insight: "Slightly slower", dot: "amber" },
+  { label: "Table Utilization", value: "78.5%", prior: "76.2%", delta: 2.3, up: true, invertColor: false, insight: "On target", dot: "green" },
+  { label: "Server Efficiency", value: "4.2 covers/hr", prior: "4.0", delta: 5.0, up: true, invertColor: false, insight: "Improving", dot: "green" },
+  { label: "Food Cost %", value: "31.2%", prior: "30.8%", delta: 0.4, up: false, invertColor: true, insight: "Stable", dot: "green" },
+  { label: "Guest Satisfaction", value: "4.6/5", prior: "4.5", delta: 2.2, up: true, invertColor: false, insight: "Trending up", dot: "green" },
 ];
 
 /* ---------- Helpers ---------- */
 
-function DeltaBadge({ current, previous }: { current: number; previous: number }) {
-  const diff = ((current - previous) / previous) * 100;
-  const up = diff >= 0;
+function DeltaArrow({ delta, up, invert }: { delta: number; up: boolean; invert?: boolean }) {
+  const positive = invert ? !up : up;
+  const cls = positive ? "leo-delta-up" : "leo-delta-down";
+  const arrow = up ? "\u2197" : "\u2198";
+  const sign = up ? "+" : "-";
   return (
-    <span className={`inline-flex items-center text-xs font-medium ${up ? "text-emerald-400" : "text-red-400"}`}>
-      <span className="mr-0.5">{up ? "\u25B2" : "\u25BC"}</span>
-      {Math.abs(diff).toFixed(1)}% vs last week
+    <span className={`text-xs ${cls}`}>
+      {arrow} {sign}{delta.toFixed(1)}%
     </span>
   );
 }
 
-function alertColor(level: string) {
-  if (level === "warn") return "border-amber-500/40 bg-amber-500/5 text-amber-300";
-  if (level === "ok") return "border-emerald-500/40 bg-emerald-500/5 text-emerald-300";
-  return "border-sky-500/40 bg-sky-500/5 text-sky-300";
-}
-
-function alertIcon(level: string) {
-  if (level === "warn") return "\u26A0";
-  if (level === "ok") return "\u2713";
-  return "\u2139";
+function dotClass(color: string) {
+  if (color === "green") return "leo-dot leo-dot-green";
+  if (color === "red") return "leo-dot leo-dot-red";
+  return "leo-dot leo-dot-amber";
 }
 
 /* ---------- Page ---------- */
 
 export default function DashboardPage() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 px-4 py-8 sm:px-8 text-gray-100">
-      <div className="mx-auto max-w-6xl space-y-8">
+    <main className="min-h-screen bg-[#f5f6fa] px-6 py-8">
+      <div className="mx-auto max-w-7xl space-y-6">
+
         {/* ---- Header ---- */}
-        <header className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight text-white">Today&apos;s Operations</h1>
-            <p className="text-sm text-gray-400">{today}</p>
+        <header className="flex items-center justify-between">
+          <h1 className="text-xl font-bold text-gray-900 tracking-tight">
+            Operations Overview
+          </h1>
+          <div className="flex items-center gap-3">
+            <div className="leo-chart-filter">Prior Week</div>
+            <div className="leo-chart-filter">Last 7 Days</div>
           </div>
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400 ring-1 ring-emerald-500/20">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            Live
-          </span>
         </header>
 
-        {/* ---- KPI Cards ---- */}
-        <section className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {/* Revenue */}
-          <div className="glass-card rounded-xl p-5 space-y-2">
-            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">{kpis.revenue.label}</p>
-            <p className="text-2xl font-bold text-white">{currency(kpis.revenue.value)}</p>
-            <DeltaBadge current={kpis.revenue.value} previous={kpis.revenue.lastWeek} />
+        {/* ---- KPI Row ---- */}
+        <section className="grid grid-cols-5 gap-4">
+          {kpis.map((k) => (
+            <div key={k.label} className="leo-kpi">
+              <p className="leo-kpi-label">{k.label}</p>
+              <p className="leo-kpi-value">{k.value}</p>
+              <div className="mt-2 flex items-center gap-2">
+                <DeltaArrow delta={k.delta} up={k.up} invert={k.invertColor} />
+                <span className="text-xs text-gray-400">vs {k.prior}</span>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-1">{k.period}</p>
+            </div>
+          ))}
+        </section>
+
+        {/* ---- Revenue Trend Chart ---- */}
+        <section className="leo-card p-6">
+          <div className="leo-chart-header">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Revenue Trend</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Last 7 Days</p>
+            </div>
+            <div className="leo-chart-filters">
+              <select className="leo-chart-filter appearance-none pr-6">
+                <option>Revenue</option>
+              </select>
+              <select className="leo-chart-filter appearance-none pr-6">
+                <option>Daily</option>
+              </select>
+              <select className="leo-chart-filter appearance-none pr-6">
+                <option>Bar</option>
+              </select>
+            </div>
           </div>
 
-          {/* Covers */}
-          <div className="glass-card rounded-xl p-5 space-y-2">
-            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">{kpis.covers.label}</p>
-            <p className="text-2xl font-bold text-white">{number(kpis.covers.value)}</p>
-            <DeltaBadge current={kpis.covers.value} previous={kpis.covers.lastWeek} />
-          </div>
-
-          {/* Labor Cost % */}
-          <div className="glass-card rounded-xl p-5 space-y-2">
-            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">{kpis.laborPct.label}</p>
-            <p className="text-2xl font-bold text-white">{percent(kpis.laborPct.value)}</p>
-            <span className={`inline-flex items-center text-xs font-medium ${kpis.laborPct.value <= kpis.laborPct.target ? "text-emerald-400" : "text-red-400"}`}>
-              Target: {percent(kpis.laborPct.target)}
-              {kpis.laborPct.value <= kpis.laborPct.target ? " \u2713" : " \u2717"}
+          {/* Legend */}
+          <div className="flex items-center gap-5 mb-4 text-xs text-gray-500">
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm bg-indigo-300" />
+              Lunch
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm bg-indigo-600" />
+              Dinner
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-sm bg-gray-300" />
+              Total
             </span>
           </div>
 
-          {/* Pace */}
-          <div className="glass-card rounded-xl p-5 space-y-2">
-            <p className="text-xs font-medium uppercase tracking-wider text-gray-400">{kpis.pace.label}</p>
-            <p className="text-2xl font-bold text-emerald-400">{kpis.pace.status}</p>
-            <span className="text-xs font-medium text-emerald-400">+{kpis.pace.delta}% vs forecast</span>
-          </div>
-        </section>
-
-        {/* ---- Revenue by Meal Period ---- */}
-        <section className="glass-card rounded-xl p-6 space-y-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Revenue by Meal Period</h2>
-          <div className="space-y-3">
-            {mealPeriods.map((mp) => (
-              <div key={mp.name} className="space-y-1">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-gray-200">{mp.name}</span>
-                  <span className="font-semibold text-white">{currency(mp.revenue)}</span>
+          {/* Bar Chart */}
+          <div className="relative">
+            {/* Y-axis grid lines */}
+            <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+              {[5000, 4000, 3000, 2000, 1000, 0].map((v) => (
+                <div key={v} className="flex items-center">
+                  <span className="text-[10px] text-gray-400 w-10 text-right pr-2">
+                    {v > 0 ? `$${(v / 1000).toFixed(0)}K` : "$0"}
+                  </span>
+                  <div className="flex-1 border-t border-gray-100" />
                 </div>
-                <div className="h-3 w-full overflow-hidden rounded-full bg-gray-800">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-all duration-700"
-                    style={{ width: `${mp.pct}%` }}
-                  />
-                </div>
-                <p className="text-right text-xs text-gray-500">{mp.pct}% of total</p>
-              </div>
-            ))}
+              ))}
+            </div>
+
+            {/* Bars */}
+            <div className="flex items-end justify-around gap-3 pl-12 pt-2" style={{ height: 220 }}>
+              {chartDays.map((d) => {
+                const total = d.lunch + d.dinner;
+                const barH = (total / maxRevenue) * 190;
+                const lunchH = (d.lunch / total) * barH;
+                const dinnerH = (d.dinner / total) * barH;
+                return (
+                  <div key={d.day} className="flex flex-col items-center flex-1">
+                    <div className="flex flex-col justify-end" style={{ height: 190 }}>
+                      <div
+                        className="w-8 rounded-t bg-indigo-600"
+                        style={{ height: dinnerH }}
+                        title={`Dinner: ${currency(d.dinner)}`}
+                      />
+                      <div
+                        className="w-8 bg-indigo-300"
+                        style={{ height: lunchH }}
+                        title={`Lunch: ${currency(d.lunch)}`}
+                      />
+                    </div>
+                    <span className="text-[11px] text-gray-500 mt-2">{d.day}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </section>
 
-        {/* ---- Staffing Overview ---- */}
-        <section className="glass-card rounded-xl p-6 space-y-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Staffing Overview</h2>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-700/50 text-left text-xs uppercase tracking-wider text-gray-500">
-                  <th className="pb-2 pr-4">Role</th>
-                  <th className="pb-2 pr-4 text-center">Lunch Heads</th>
-                  <th className="pb-2 pr-4 text-center">Dinner Heads</th>
-                  <th className="pb-2 pr-4 text-right">Total Hours</th>
-                  <th className="pb-2 text-right">Labor Cost</th>
-                </tr>
-              </thead>
-              <tbody>
-                {staffing.map((row) => (
-                  <tr key={row.role} className="border-b border-gray-800/40">
-                    <td className="py-3 pr-4 font-medium text-gray-200">{row.role}</td>
-                    <td className="py-3 pr-4 text-center text-gray-300">{row.lunchHeads}</td>
-                    <td className="py-3 pr-4 text-center text-gray-300">{row.dinnerHeads}</td>
-                    <td className="py-3 pr-4 text-right text-gray-300">{row.hours} hrs</td>
-                    <td className="py-3 text-right font-medium text-white">{currency(row.cost)}</td>
-                  </tr>
-                ))}
-                <tr className="text-gray-300">
-                  <td className="pt-3 pr-4 font-semibold text-gray-200">Total</td>
-                  <td className="pt-3 pr-4 text-center font-semibold">{staffing.reduce((s, r) => s + r.lunchHeads, 0)}</td>
-                  <td className="pt-3 pr-4 text-center font-semibold">{staffing.reduce((s, r) => s + r.dinnerHeads, 0)}</td>
-                  <td className="pt-3 pr-4 text-right font-semibold">{staffing.reduce((s, r) => s + r.hours, 0)} hrs</td>
-                  <td className="pt-3 text-right font-semibold text-white">{currency(staffing.reduce((s, r) => s + r.cost, 0))}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        {/* ---- Bottom Metrics Row ---- */}
+        <section className="grid grid-cols-5 gap-4">
+          {bottomMetrics.map((m) => (
+            <div key={m.label} className="leo-kpi">
+              <p className="leo-kpi-label">{m.label}</p>
+              <p className="text-2xl font-bold text-gray-900 mt-1">{m.value}</p>
+              <div className="mt-2 flex items-center gap-2">
+                <DeltaArrow delta={m.delta} up={m.up} invert={m.invertColor} />
+                <span className="text-xs text-gray-400">vs {m.prior}</span>
+              </div>
+              <div className="mt-2 flex items-center gap-1.5 text-xs text-gray-500">
+                <span className={dotClass(m.dot)} />
+                {m.insight}
+              </div>
+            </div>
+          ))}
         </section>
 
-        {/* ---- Alerts & Recommendations ---- */}
-        <section className="space-y-4">
-          <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-400">Alerts &amp; Recommendations</h2>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {alerts.map((a, i) => (
-              <div key={i} className={`rounded-lg border px-4 py-3 text-sm ${alertColor(a.level)}`}>
-                <span className="mr-2">{alertIcon(a.level)}</span>
-                {a.text}
-              </div>
-            ))}
-          </div>
-        </section>
       </div>
     </main>
   );

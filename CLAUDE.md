@@ -1,8 +1,9 @@
 # Claude Code Configuration - Ruflo v3.5
 
-> **Ruflo v3.5** (2026-02-27) — First major stable release. Formerly "Claude Flow".
+> **Ruflo v3.5.42** (2026-03-25) — First major stable release. Formerly "Claude Flow".
 > 5,900+ commits, 55 alpha iterations, 259 MCP tools, 60+ agents, 8 AgentDB controllers.
-> Packages: `@claude-flow/cli@3.5.0`, `claude-flow@3.5.0`, `ruflo@3.5.0`
+> Packages: `@claude-flow/cli@3.5.42`, `claude-flow@3.5.42`, `ruflo@3.5.42`
+> Repository: `rrmethodco/ruflo` (migrated from `ruvnet/claude-flow`)
 
 ## Behavioral Rules (Always Enforced)
 
@@ -34,16 +35,123 @@
 - Use event sourcing for state changes
 - Ensure input validation at system boundaries
 
-### Key Packages
+### All Packages (20 modules + 3 umbrellas)
+
+**Core Platform:**
 
 | Package | Path | Purpose |
 |---------|------|---------|
-| `@claude-flow/cli` | `v3/@claude-flow/cli/` | CLI entry point (26 commands) |
+| `@claude-flow/cli` | `v3/@claude-flow/cli/` | CLI entry point (26 commands, 140+ subcommands, 259 MCP tools) |
+| `@claude-flow/shared` | `v3/@claude-flow/shared/` | Shared types, events, utilities, core interfaces |
+| `@claude-flow/mcp` | `v3/@claude-flow/mcp/` | Standalone MCP server (stdio/http/websocket) |
+| `@claude-flow/guidance` | `v3/@claude-flow/guidance/` | Governance control plane (28 subpath exports) |
+
+**Intelligence & Memory:**
+
+| Package | Path | Purpose |
+|---------|------|---------|
+| `@claude-flow/memory` | `v3/@claude-flow/memory/` | AgentDB + HNSW search (150x-12,500x faster) |
+| `@claude-flow/neural` | `v3/@claude-flow/neural/` | SONA learning, neural modes |
+| `@claude-flow/embeddings` | `v3/@claude-flow/embeddings/` | Vector embeddings (OpenAI, Transformers.js, ONNX, hyperbolic) |
+| `@claude-flow/hooks` | `v3/@claude-flow/hooks/` | 17 hooks + 12 workers, ReasoningBank integration |
+
+**Specialized Systems:**
+
+| Package | Path | Purpose |
+|---------|------|---------|
+| `@claude-flow/security` | `v3/@claude-flow/security/` | CVE fixes, input validation, path security |
+| `@claude-flow/swarm` | `v3/@claude-flow/swarm/` | 4 topologies, hive-mind, consensus protocols |
+| `@claude-flow/performance` | `v3/@claude-flow/performance/` | Benchmarking, Flash Attention, optimization |
+| `@claude-flow/plugins` | `v3/@claude-flow/plugins/` | Unified Plugin SDK (Worker, Hook, Provider) |
 | `@claude-flow/codex` | `v3/@claude-flow/codex/` | Dual-mode Claude + Codex collaboration |
-| `@claude-flow/guidance` | `v3/@claude-flow/guidance/` | Governance control plane |
-| `@claude-flow/hooks` | `v3/@claude-flow/hooks/` | 17 hooks + 12 workers |
-| `@claude-flow/memory` | `v3/@claude-flow/memory/` | AgentDB + HNSW search |
-| `@claude-flow/security` | `v3/@claude-flow/security/` | Input validation, CVE remediation |
+| `@claude-flow/deployment` | `v3/@claude-flow/deployment/` | Release management, CI/CD, versioning |
+| `@claude-flow/testing` | `v3/@claude-flow/testing/` | TDD London School framework |
+
+**Additional Modules:**
+
+| Package | Path | Purpose |
+|---------|------|---------|
+| `@claude-flow/aidefence` | `v3/@claude-flow/aidefence/` | AI Manipulation Defense, prompt injection detection |
+| `@claude-flow/browser` | `v3/@claude-flow/browser/` | Browser automation for AI agents |
+| `@claude-flow/claims` | `v3/@claude-flow/claims/` | Issue claiming and work coordination |
+| `@claude-flow/integration` | `v3/@claude-flow/integration/` | agentic-flow deep integration, TokenOptimizer |
+| `@claude-flow/providers` | `v3/@claude-flow/providers/` | Multi-LLM provider system |
+
+**Umbrella Packages:**
+
+| Package | Path | Purpose |
+|---------|------|---------|
+| `claude-flow` | `/` (root) | Umbrella package with bin entries |
+| `ruflo` | `/ruflo/` | MCP bridge wrapper, depends on @claude-flow/cli |
+
+## Build, Test & CI/CD
+
+### Runtime Requirements
+- **Node.js**: >= 20.0.0
+- **npm**: 9+
+- **Package Manager**: pnpm 8.15.0 (v3 packages)
+- **TypeScript**: 5.3.0+
+- **Module System**: ESM (`"type": "module"`)
+
+### Build Commands
+```bash
+npm run build              # Build all packages (tsc)
+npm run build:ts           # CLI build specifically
+npm run lint               # Linting via eslint
+npm run typecheck          # Type checking
+```
+
+### Testing (Vitest 4.0.16+)
+```bash
+npm run test               # Run all tests
+npm run test:unit          # Unit tests only
+npm run test:integration   # Integration tests
+npm run test:coverage      # With coverage reports
+npm run test:security      # Security tests
+npm run test:memory        # Memory module tests
+npm run test:swarm         # Swarm tests
+```
+
+Test directories: `v3/__tests__/` (root integration), plus `__tests__/` in each package.
+
+### CI/CD Workflows (`.github/workflows/`)
+| Workflow | Purpose |
+|----------|---------|
+| `ci.yml` | Main CI pipeline |
+| `integration-tests.yml` | Comprehensive integration testing |
+| `rollback-manager.yml` | Rollback management |
+| `v3-ci.yml` | V3-specific CI |
+| `verification-pipeline.yml` | Pre-release verification |
+| `status-badges.yml` | Status reporting |
+
+### Key Dependencies
+- `commander@^12.0.0` — CLI parsing
+- `zod@^3.22.4` — Schema validation
+- `agentdb@^3.0.0-alpha.10` — Agent database
+- `sql.js@^1.10.3` — SQLite WASM
+- `@ruvector/sona@^0.1.5` — Self-optimizing neural architecture
+- `@ruvector/attention@^0.1.4` — Flash attention
+- `@ruvector/router@^0.1.27` — Semantic routing
+- `@ruvector/learning-wasm@^0.1.29` — Neural learning WASM
+
+### MCP Tool Files (29 files, 259+ tools)
+Tool categories in `v3/@claude-flow/cli/src/mcp-tools/`:
+`agent`, `agentdb`, `analyze`, `browser`, `claims`, `config`, `coordination`, `embeddings`, `github`, `hive-mind`, `hooks`, `memory`, `neural`, `performance`, `progress`, `ruvllm`, `security`, `session`, `swarm`, `system`, `task`, `terminal`, `transfer`, `workflow`, `wasm-agent`, `daa`
+
+### Recent Fixes (v3.5.1 → v3.5.42)
+- Command injection fix (SAFE_LANGUAGES whitelist)
+- TOCTOU race condition in bridge singleton (Promise-based caching)
+- Hive-mind status reads real agent state (not hardcoded)
+- MCP server self-kill prevention on startup
+- Intelligence vector store + statusline accuracy
+- RuVector WASM integration + real semantic embeddings
+- CJS/ESM interop with `'default'` module check
+- Semantic routing learning loop closure
+- CPU-proportional `maxCpuLoad` (replaces hardcoded 2.0)
+- Base template frontmatter YAML-safe fix
+- PluginManager priority and version checks fix
+
+---
 
 ## Concurrency: 1 MESSAGE = ALL RELATED OPERATIONS
 

@@ -1,46 +1,32 @@
 "use client";
 
-import { percent } from "@/lib/format";
+import { currency } from "@/lib/format";
 
-/* ------------------------------------------------------------------ */
-/* Static settings data                                                */
-/* ------------------------------------------------------------------ */
+// ---------------------------------------------------------------------------
+// Static settings data
+// ---------------------------------------------------------------------------
 
 const RESTAURANT = {
   name: "The Modern Table",
   type: "Casual Dining",
   seats: 120,
   hours: [
-    { label: "Mon–Thu", value: "11:00 AM – 10:00 PM" },
-    { label: "Fri–Sat", value: "11:00 AM – 11:00 PM" },
-    { label: "Sunday", value: "10:00 AM – 9:00 PM (Brunch 10–2)" },
+    { label: "Mon - Thu", value: "11:00 AM - 10:00 PM" },
+    { label: "Fri - Sat", value: "11:00 AM - 11:00 PM" },
+    { label: "Sunday", value: "10:00 AM - 9:00 PM (Brunch 10-2)" },
   ],
 };
 
-const LABOR = {
-  totalPct: 30,
-  fohPct: 13,
-  bohPct: 13,
-  mgmtPct: 4,
-  otThreshold: 40,
-};
-
-const INTEGRATIONS = [
-  {
-    name: "Toast POS",
-    connected: true,
-    detail: "Restaurant GUID",
-    value: "a1b2c3d4-****-****-****-ef5678901234",
-  },
-  {
-    name: "RESY",
-    connected: true,
-    detail: "Venue ID",
-    value: "tmtable-nyc-****-7890",
-  },
+const LABOR_TARGETS = [
+  { target: "Total Labor", foh: "13%", boh: "13%", mgmt: "4%" },
 ];
 
-const FORECAST_SETTINGS = [
+const INTEGRATIONS = [
+  { name: "Toast POS", status: "Connected", id: "a1b2c3d4-****-****-****-ef5678901234" },
+  { name: "RESY", status: "Connected", id: "tmtable-nyc-****-7890" },
+];
+
+const FORECAST_CONFIG = [
   { label: "Trailing Weeks", value: "8" },
   { label: "Interval", value: "15 min" },
   { label: "Confidence Level", value: "80%" },
@@ -48,118 +34,107 @@ const FORECAST_SETTINGS = [
   { label: "Reservation Pace", value: "Yes" },
 ];
 
-/* ------------------------------------------------------------------ */
-/* Reusable card wrapper                                               */
-/* ------------------------------------------------------------------ */
-
-function Card({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl p-6 space-y-4">
-      <h2 className="text-sm font-semibold text-slate-300 uppercase tracking-wider">{title}</h2>
-      {children}
-    </div>
-  );
-}
-
-function Row({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div className="flex items-center justify-between py-2 border-b border-white/5 last:border-0">
-      <span className="text-sm text-slate-400">{label}</span>
-      <span className={`text-sm font-medium ${accent ? "text-emerald-400" : "text-slate-200"}`}>{value}</span>
-    </div>
-  );
-}
-
-/* ------------------------------------------------------------------ */
-/* Page                                                                */
-/* ------------------------------------------------------------------ */
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 export default function SettingsPage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-white p-6 space-y-6 max-w-4xl mx-auto">
-      {/* Header */}
-      <h1 className="text-2xl font-bold tracking-tight">Settings</h1>
+    <div className="min-h-screen bg-[#f5f6fa] p-6 space-y-6 max-w-4xl mx-auto">
+      <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
 
       {/* Restaurant Profile */}
-      <Card title="Restaurant Profile">
-        <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 text-emerald-400 text-xl font-bold shrink-0">
-            MT
+      <div className="leo-card p-6">
+        <h2 className="leo-section-title">Restaurant Profile</h2>
+        <div className="space-y-3">
+          <div className="flex justify-between py-2 border-b border-gray-100">
+            <span className="text-sm text-gray-500">Name</span>
+            <span className="text-sm font-medium text-gray-900">{RESTAURANT.name}</span>
           </div>
-          <div className="space-y-1 flex-1">
-            <p className="text-lg font-semibold text-slate-100">{RESTAURANT.name}</p>
-            <div className="flex flex-wrap gap-3 text-xs text-slate-400">
-              <span className="px-2 py-0.5 rounded-full border border-white/10 bg-white/5">{RESTAURANT.type}</span>
-              <span className="px-2 py-0.5 rounded-full border border-white/10 bg-white/5">{RESTAURANT.seats} seats</span>
-            </div>
+          <div className="flex justify-between py-2 border-b border-gray-100">
+            <span className="text-sm text-gray-500">Type</span>
+            <span className="text-sm font-medium text-gray-900">{RESTAURANT.type}</span>
           </div>
-        </div>
-        <div className="pt-2 space-y-1">
-          <p className="text-xs uppercase tracking-wider text-slate-500 mb-2">Operating Hours</p>
+          <div className="flex justify-between py-2 border-b border-gray-100">
+            <span className="text-sm text-gray-500">Seats</span>
+            <span className="text-sm font-medium text-gray-900">{RESTAURANT.seats}</span>
+          </div>
           {RESTAURANT.hours.map((h) => (
-            <div key={h.label} className="flex justify-between text-sm">
-              <span className="text-slate-400">{h.label}</span>
-              <span className="text-slate-300">{h.value}</span>
+            <div key={h.label} className="flex justify-between py-2 border-b border-gray-100 last:border-0">
+              <span className="text-sm text-gray-500">{h.label}</span>
+              <span className="text-sm font-medium text-gray-900">{h.value}</span>
             </div>
           ))}
         </div>
-      </Card>
+      </div>
 
       {/* Labor Targets */}
-      <Card title="Labor Targets">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[
-            { label: "Total Labor", value: LABOR.totalPct },
-            { label: "FOH", value: LABOR.fohPct },
-            { label: "BOH", value: LABOR.bohPct },
-            { label: "Mgmt", value: LABOR.mgmtPct },
-          ].map((t) => (
-            <div key={t.label} className="rounded-xl border border-white/10 bg-white/5 p-4 text-center space-y-1">
-              <p className="text-2xl font-bold text-emerald-400">{percent(t.value)}</p>
-              <p className="text-xs text-slate-400">{t.label}</p>
-            </div>
-          ))}
-        </div>
-        <Row label="OT Threshold" value={`${LABOR.otThreshold} hrs / week`} />
-      </Card>
+      <div className="leo-card p-6">
+        <h2 className="leo-section-title">Labor Targets</h2>
+        <table className="leo-table">
+          <thead>
+            <tr>
+              <th>Target</th>
+              <th className="text-right">FOH</th>
+              <th className="text-right">BOH</th>
+              <th className="text-right">Management</th>
+            </tr>
+          </thead>
+          <tbody>
+            {LABOR_TARGETS.map((row) => (
+              <tr key={row.target}>
+                <td className="font-medium text-gray-900">{row.target}</td>
+                <td className="text-right">{row.foh}</td>
+                <td className="text-right">{row.boh}</td>
+                <td className="text-right">{row.mgmt}</td>
+              </tr>
+            ))}
+            <tr>
+              <td className="font-medium text-gray-900">OT Threshold</td>
+              <td colSpan={3} className="text-right">40 hrs / week</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
       {/* Integrations */}
-      <Card title="Integrations">
-        <div className="space-y-4">
+      <div className="leo-card p-6">
+        <h2 className="leo-section-title">Integrations</h2>
+        <div className="space-y-3">
           {INTEGRATIONS.map((intg) => (
-            <div key={intg.name} className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 p-4">
+            <div key={intg.name} className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium text-slate-200">{intg.name}</span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold border ${
-                    intg.connected
-                      ? "text-emerald-400 bg-emerald-500/20 border-emerald-500/30"
-                      : "text-red-400 bg-red-500/20 border-red-500/30"
-                  }`}>
-                    {intg.connected ? "Connected" : "Disconnected"}
+                  <span className="text-sm font-medium text-gray-900">{intg.name}</span>
+                  <span className="text-[10px] font-semibold uppercase px-2 py-0.5 rounded bg-emerald-50 text-emerald-600 border border-emerald-200">
+                    {intg.status}
                   </span>
                 </div>
-                <p className="text-xs text-slate-500">
-                  {intg.detail}: <span className="text-slate-400 font-mono">{intg.value}</span>
-                </p>
+                <p className="text-xs text-gray-400 font-mono">{intg.id}</p>
               </div>
               <button
                 type="button"
-                className="text-xs px-3 py-1.5 rounded-lg border border-white/10 bg-white/5 text-slate-400 hover:text-slate-200 hover:bg-white/10 transition-colors cursor-default"
+                className="text-xs px-3 py-1.5 rounded border border-gray-200 text-gray-500 hover:text-gray-700 hover:bg-gray-50 transition-colors cursor-default"
               >
                 Configure
               </button>
             </div>
           ))}
         </div>
-      </Card>
+      </div>
 
-      {/* Forecast Settings */}
-      <Card title="Forecast Settings">
-        {FORECAST_SETTINGS.map((s) => (
-          <Row key={s.label} label={s.label} value={s.value} accent={s.value === "Yes"} />
-        ))}
-      </Card>
+      {/* Forecast Configuration */}
+      <div className="leo-card p-6">
+        <h2 className="leo-section-title">Forecast Configuration</h2>
+        <div className="space-y-1">
+          {FORECAST_CONFIG.map((item) => (
+            <div key={item.label} className="flex justify-between py-2 border-b border-gray-100 last:border-0">
+              <span className="text-sm text-gray-500">{item.label}</span>
+              <span className="text-sm font-medium text-gray-900">{item.value}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

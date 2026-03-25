@@ -52,29 +52,23 @@ const openShifts = [
   { role: "Dishwasher", date: "Sun 3/29", time: "4:00 PM - 10:00 PM", severity: "warning" as const },
 ];
 
-const overtimeAlerts = [
-  { name: "David Park", projected: 41, threshold: 40, overtime: 1, costImpact: 36, note: "" },
-  { name: "Marcus Williams", projected: 40, threshold: 40, overtime: 0, costImpact: 0, note: "At threshold - monitor closely" },
+const overtimeRisks = [
+  { name: "David Park", projected: 41, threshold: 40, costImpact: "$36" },
+  { name: "Marcus Williams", projected: 40, threshold: 40, costImpact: "$0" },
 ];
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function deptColor(d: Dept) {
-  return d === "foh" ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
-    : d === "boh" ? "bg-blue-500/20 text-blue-300 border-blue-500/30"
-    : "bg-purple-500/20 text-purple-300 border-purple-500/30";
-}
-
-function deptDot(d: Dept) {
-  return d === "foh" ? "bg-emerald-400" : d === "boh" ? "bg-blue-400" : "bg-purple-400";
+function deptBorder(d: Dept) {
+  return d === "foh" ? "border-l-indigo-500" : d === "boh" ? "border-l-slate-400" : "border-l-purple-500";
 }
 
 function severityBadge(s: "critical" | "warning") {
   return s === "critical"
-    ? "bg-red-500/20 text-red-400 border-red-500/30"
-    : "bg-amber-500/20 text-amber-400 border-amber-500/30";
+    ? "bg-red-50 text-red-600 border border-red-200"
+    : "bg-amber-50 text-amber-600 border border-amber-200";
 }
 
 // ---------------------------------------------------------------------------
@@ -83,80 +77,77 @@ function severityBadge(s: "critical" | "warning") {
 
 export default function SchedulePage() {
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 text-white p-6 space-y-6">
+    <div className="min-h-screen bg-[#f5f6fa] p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Weekly Schedule</h1>
-          <p className="text-sm text-gray-400 mt-1">{WEEK_LABEL}</p>
+          <h1 className="text-2xl font-bold text-gray-900">Weekly Schedule</h1>
+          <p className="text-sm text-gray-500 mt-0.5">{WEEK_LABEL}</p>
         </div>
-        <div className="flex items-center gap-3">
-          {(["foh", "boh", "mgmt"] as Dept[]).map((d) => (
-            <span key={d} className="flex items-center gap-1.5 text-xs text-gray-400">
-              <span className={`w-2.5 h-2.5 rounded-full ${deptDot(d)}`} />
-              {d === "mgmt" ? "Mgmt" : d.toUpperCase()}
-            </span>
-          ))}
+        <div className="flex items-center gap-4 text-xs text-gray-500">
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-0.5 bg-indigo-500 rounded" /> FOH</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-0.5 bg-slate-400 rounded" /> BOH</span>
+          <span className="flex items-center gap-1.5"><span className="w-2.5 h-0.5 bg-purple-500 rounded" /> Mgmt</span>
         </div>
       </div>
 
-      {/* Summary Bar */}
+      {/* KPI Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: "Total Hours", value: fmt(summary.totalHours), alert: false },
-          { label: "Total Cost", value: currency(summary.totalCost), alert: false },
-          { label: "Open Shifts", value: String(summary.openShifts), alert: true },
-          { label: "OT Alerts", value: String(summary.overtimeAlerts), alert: true },
-        ].map((c) => (
-          <div key={c.label} className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4">
-            <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">{c.label}</p>
-            <p className={`text-2xl font-bold ${c.alert ? "text-amber-400" : "text-white"}`}>{c.value}</p>
-          </div>
-        ))}
+        <div className="leo-kpi">
+          <p className="leo-kpi-label">Total Hours</p>
+          <p className="leo-kpi-value">{fmt(summary.totalHours)}</p>
+        </div>
+        <div className="leo-kpi">
+          <p className="leo-kpi-label">Total Cost</p>
+          <p className="leo-kpi-value">{currency(summary.totalCost)}</p>
+        </div>
+        <div className="leo-kpi">
+          <p className="leo-kpi-label">Open Shifts</p>
+          <p className="leo-kpi-value text-amber-600">{summary.openShifts}</p>
+        </div>
+        <div className="leo-kpi">
+          <p className="leo-kpi-label">OT Alerts</p>
+          <p className="leo-kpi-value text-red-500">{summary.overtimeAlerts}</p>
+        </div>
       </div>
 
-      {/* Schedule Calendar Grid */}
-      <section className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-5 overflow-x-auto">
-        <h2 className="text-lg font-semibold mb-4">Staff Schedule</h2>
-        <table className="w-full text-sm">
+      {/* Schedule Grid */}
+      <div className="leo-card p-5 overflow-x-auto">
+        <h2 className="leo-section-title">Staff Schedule</h2>
+        <table className="leo-table">
           <thead>
-            <tr className="text-gray-400 text-xs uppercase tracking-wider">
-              <th className="text-left py-2 pr-3 font-medium w-40">Employee</th>
+            <tr>
+              <th className="w-44">Employee</th>
               {DAYS.map((d, i) => (
-                <th key={d} className="py-2 px-2 font-medium text-center">
+                <th key={d} className="text-center">
                   <div>{d}</div>
-                  <div className="text-[10px] text-gray-500 font-normal">{DATES[i]}</div>
+                  <div className="text-[10px] text-gray-400 font-normal normal-case tracking-normal">{DATES[i]}</div>
                 </th>
               ))}
-              <th className="py-2 px-2 font-medium text-center">Hours</th>
+              <th className="text-center">Hours</th>
             </tr>
           </thead>
           <tbody>
             {employees.map((emp) => (
-              <tr key={emp.name} className="border-t border-white/5">
-                <td className="py-2 pr-3">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full shrink-0 ${deptDot(emp.dept)}`} />
-                    <div>
-                      <p className="font-medium text-white text-xs">{emp.name}</p>
-                      <p className="text-[10px] text-gray-500">{emp.role}</p>
-                    </div>
-                  </div>
+              <tr key={emp.name}>
+                <td>
+                  <p className="font-medium text-gray-900 text-xs">{emp.name}</p>
+                  <p className="text-[10px] text-gray-400">{emp.role}</p>
                 </td>
                 {emp.shifts.map((shift, si) => (
-                  <td key={si} className="py-2 px-1 text-center">
+                  <td key={si} className="text-center !px-1">
                     {shift ? (
-                      <div className={`rounded-lg border px-1.5 py-1 text-[10px] leading-tight ${deptColor(shift.d)}`}>
-                        <div className="font-medium">{shift.t}</div>
-                        <div className="opacity-70">{shift.r}</div>
+                      <div className={`rounded border-l-2 ${deptBorder(shift.d)} bg-gray-50 px-1.5 py-1 text-[10px] leading-tight`}>
+                        <div className="font-medium text-gray-800">{shift.t}</div>
+                        <div className="text-gray-400">{shift.r}</div>
                       </div>
                     ) : (
-                      <span className="text-gray-600 text-xs">OFF</span>
+                      <span className="text-gray-300 text-xs">OFF</span>
                     )}
                   </td>
                 ))}
-                <td className="py-2 px-2 text-center">
-                  <span className={`font-semibold text-sm ${emp.hrs >= 40 ? "text-amber-400" : "text-white"}`}>
+                <td className="text-center">
+                  <span className={`font-semibold text-sm ${emp.hrs >= 40 ? "text-amber-600 bg-amber-50 px-2 py-0.5 rounded" : "text-gray-900"}`}>
                     {emp.hrs}
                   </span>
                 </td>
@@ -164,55 +155,65 @@ export default function SchedulePage() {
             ))}
           </tbody>
         </table>
-      </section>
+      </div>
 
       {/* Bottom panels */}
       <div className="grid md:grid-cols-2 gap-4">
         {/* Open Shifts */}
-        <section className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-5">
-          <h3 className="text-lg font-semibold mb-3">Open Shifts</h3>
-          <div className="space-y-3">
-            {openShifts.map((s, i) => (
-              <div key={i} className="flex items-center justify-between rounded-xl border border-white/5 bg-white/[0.03] p-3">
-                <div>
-                  <p className="text-sm font-medium">{s.role}</p>
-                  <p className="text-xs text-gray-400">{s.date} &middot; {s.time}</p>
-                </div>
-                <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded-full border ${severityBadge(s.severity)}`}>
-                  {s.severity}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
+        <div className="leo-card p-5">
+          <h3 className="leo-section-title">Open Shifts</h3>
+          <table className="leo-table">
+            <thead>
+              <tr>
+                <th>Role</th>
+                <th>Day</th>
+                <th>Time</th>
+                <th>Severity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {openShifts.map((s, i) => (
+                <tr key={i}>
+                  <td className="font-medium text-gray-900">{s.role}</td>
+                  <td>{s.date}</td>
+                  <td>{s.time}</td>
+                  <td>
+                    <span className={`text-[10px] font-semibold uppercase px-2 py-0.5 rounded ${severityBadge(s.severity)}`}>
+                      {s.severity}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-        {/* Overtime Alerts */}
-        <section className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-5">
-          <h3 className="text-lg font-semibold mb-3">Overtime Alerts</h3>
-          <div className="space-y-3">
-            {overtimeAlerts.map((a, i) => (
-              <div key={i} className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="text-sm font-medium">{a.name}</p>
-                  <span className="text-xs font-semibold text-amber-400">{a.projected}h / {a.threshold}h</span>
-                </div>
-                {a.overtime > 0 && (
-                  <div className="flex items-center justify-between text-xs text-gray-400">
-                    <span>Overtime: {a.overtime}h</span>
-                    <span>Cost impact: +{currency(a.costImpact)}</span>
-                  </div>
-                )}
-                {a.note && <p className="text-xs text-amber-400/70 mt-1">{a.note}</p>}
-                <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full ${a.projected > a.threshold ? "bg-amber-400" : "bg-emerald-400"}`}
-                    style={{ width: `${Math.min((a.projected / a.threshold) * 100, 100)}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        {/* Overtime Risks */}
+        <div className="leo-card p-5">
+          <h3 className="leo-section-title">Overtime Risks</h3>
+          <table className="leo-table">
+            <thead>
+              <tr>
+                <th>Employee</th>
+                <th className="text-right">Projected</th>
+                <th className="text-right">Threshold</th>
+                <th className="text-right">Cost Impact</th>
+              </tr>
+            </thead>
+            <tbody>
+              {overtimeRisks.map((a, i) => (
+                <tr key={i}>
+                  <td className="font-medium text-gray-900">{a.name}</td>
+                  <td className={`text-right font-medium ${a.projected > a.threshold ? "text-amber-600" : "text-gray-700"}`}>
+                    {a.projected}h
+                  </td>
+                  <td className="text-right">{a.threshold}h</td>
+                  <td className="text-right">{a.costImpact}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

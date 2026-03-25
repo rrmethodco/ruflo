@@ -3,6 +3,7 @@
  *
  * Detailed revenue, labor, and expense breakdown for the Rooms department.
  * Filtered to ROOMS department dimension.
+ * GL account numbers mapped to actual Sage Intacct chart of accounts.
  */
 
 import {
@@ -38,88 +39,63 @@ const LINES: ReportLineItem[] = [
   // ── REVENUE ──────────────────────────────────────────────────────────
 
   line('header-rev', 'REVENUE', 'header', { type: 'none' }, { bold: true }),
-  line('rev-transient', '  Transient Room Revenue', 'account', {
-    type: 'gl_accounts', accounts: ['4000'], departments: dept,
+  line('rev-transient', '  Transient Revenue', 'account', {
+    type: 'gl_accounts', accounts: ['4110010', '4110020', '4110030', '4110040', '4110050'], departments: dept,
   }, { indent: 1, signConvention: 'reversed' }),
-  line('rev-group', '  Group Room Revenue', 'account', {
-    type: 'gl_accounts', accounts: ['4010'], departments: dept,
+  line('rev-group', '  Group Revenue', 'account', {
+    type: 'gl_accounts', accounts: ['4110100', '4110110', '4110120', '4110130', '4110140', '4110150'], departments: dept,
   }, { indent: 1, signConvention: 'reversed' }),
-  line('rev-contract', '  Contract Room Revenue', 'account', {
-    type: 'gl_accounts', accounts: ['4020'], departments: dept,
+  line('rev-contract', '  Contract Revenue', 'account', {
+    type: 'gl_accounts', accounts: ['4110200', '4110210', '4110220'], departments: dept,
   }, { indent: 1, signConvention: 'reversed' }),
-  line('rev-other', '  Other Room Revenue', 'account', {
-    type: 'gl_accounts', accounts: ['4030'], departments: dept,
+  line('rev-dayuse-other', '  Day Use / Other Room Charges', 'account', {
+    type: 'gl_accounts', accounts: ['4110300', '4110310', '4110320', '4110330', '4110340', '4110350', '4110360', '4110370'], departments: dept,
   }, { indent: 1, signConvention: 'reversed' }),
-  line('rev-noshow', '  No-Show Revenue', 'account', {
-    type: 'gl_accounts', accounts: ['4040'], departments: dept,
+  line('rev-package-ancillary', '  Package & Ancillary Revenue', 'account', {
+    type: 'gl_accounts', accounts: ['4110380', '4110390', '4110400', '4110410', '4110420', '4110430', '4110440', '4110450'], departments: dept,
   }, { indent: 1, signConvention: 'reversed' }),
-  line('rev-cancel', '  Cancellation Revenue', 'account', {
-    type: 'gl_accounts', accounts: ['4050'], departments: dept,
-  }, { indent: 1, signConvention: 'reversed' }),
-  line('rev-svccharge', '  Service Charges', 'account', {
-    type: 'gl_accounts', accounts: ['4060'], departments: dept,
-  }, { indent: 1, signConvention: 'reversed' }),
-  line('rev-allowances', '  Less: Allowances', 'account', {
-    type: 'gl_accounts', accounts: ['4090'], departments: dept,
-  }, { indent: 1 }),
   line('total-revenue', 'TOTAL ROOMS REVENUE', 'total', {
-    type: 'sum', lineIds: ['rev-transient', 'rev-group', 'rev-contract', 'rev-other', 'rev-noshow', 'rev-cancel', 'rev-svccharge', 'rev-allowances'],
+    type: 'sum', lineIds: ['rev-transient', 'rev-group', 'rev-contract', 'rev-dayuse-other', 'rev-package-ancillary'],
   }, { bold: true, underline: 'single' }),
   line('blank-1', '', 'blank', { type: 'none' }),
 
   // ── LABOR COSTS ──────────────────────────────────────────────────────
 
   line('header-labor', 'LABOR COSTS', 'header', { type: 'none' }, { bold: true }),
-  line('labor-salaries-mgmt', '  Salaries - Management', 'account', {
-    type: 'gl_accounts', accounts: ['6000'], departments: dept,
+
+  // Salaries & Wages
+  line('labor-salaries-base', '  Salaries/Wages (Base)', 'account', {
+    type: 'gl_accounts', accounts: ['6110000'], departments: dept,
   }, { indent: 1 }),
-  line('labor-salaries-staff', '  Wages - Staff', 'account', {
-    type: 'gl_accounts', accounts: ['6010'], departments: dept,
+  line('labor-salaries-ot', '  Salaries/Wages (OT)', 'account', {
+    type: 'gl_accounts', accounts: ['6120000'], departments: dept,
   }, { indent: 1 }),
-  line('labor-overtime', '  Overtime', 'account', {
-    type: 'gl_accounts', accounts: ['6020'], departments: dept,
-  }, { indent: 1 }),
-  line('labor-vacation', '  Vacation & Holiday Pay', 'account', {
-    type: 'gl_accounts', accounts: ['6030'], departments: dept,
-  }, { indent: 1 }),
-  line('labor-bonuses', '  Bonuses & Incentives', 'account', {
-    type: 'gl_accounts', accounts: ['6050'], departments: dept,
-  }, { indent: 1 }),
-  line('labor-svccharge-dist', '  Service Charge Distribution', 'account', {
-    type: 'gl_accounts', accounts: ['6060'], departments: dept,
-  }, { indent: 1 }),
-  line('labor-contract', '  Contract Labor', 'account', {
-    type: 'gl_accounts', accounts: ['6070'], departments: dept,
+  line('labor-contract-temp', '  Contract/Temp Labor', 'account', {
+    type: 'gl_accounts', accounts: ['6130000'], departments: dept,
   }, { indent: 1 }),
   line('total-salaries', '  Total Salaries & Wages', 'subtotal', {
-    type: 'sum', lineIds: ['labor-salaries-mgmt', 'labor-salaries-staff', 'labor-overtime', 'labor-vacation', 'labor-bonuses', 'labor-svccharge-dist', 'labor-contract'],
+    type: 'sum', lineIds: ['labor-salaries-base', 'labor-salaries-ot', 'labor-contract-temp'],
   }, { indent: 1, underline: 'single' }),
   line('blank-2', '', 'blank', { type: 'none' }),
 
   // Benefits
   line('labor-payrolltax', '  Payroll Taxes', 'account', {
-    type: 'gl_accounts', accounts: ['6100'], departments: dept,
+    type: 'gl_accounts', accounts: ['6210000', '6220000', '6230000', '6240000', '6250000'], departments: dept,
   }, { indent: 1 }),
-  line('labor-health', '  Employee Health Insurance', 'account', {
-    type: 'gl_accounts', accounts: ['6110'], departments: dept,
+  line('labor-insurance', '  Employee Insurance', 'account', {
+    type: 'gl_accounts', accounts: ['6310000', '6320000', '6330000', '6340000', '6350000', '6360000', '6370000', '6380000'], departments: dept,
   }, { indent: 1 }),
-  line('labor-workcomp', '  Workers Compensation', 'account', {
-    type: 'gl_accounts', accounts: ['6120'], departments: dept,
+  line('labor-benefits', '  Benefits', 'account', {
+    type: 'gl_accounts', accounts: ['6410000', '6411000', '6412000', '6413000', '6414000', '6415000', '6416000', '6417000', '6418000', '6419000', '6419100', '6419200'], departments: dept,
   }, { indent: 1 }),
-  line('labor-retirement', '  Retirement/401k', 'account', {
-    type: 'gl_accounts', accounts: ['6130'], departments: dept,
+  line('labor-bonuses', '  Bonuses', 'account', {
+    type: 'gl_accounts', accounts: ['6510000', '6520000'], departments: dept,
   }, { indent: 1 }),
-  line('labor-meals', '  Employee Meals', 'account', {
-    type: 'gl_accounts', accounts: ['6140'], departments: dept,
-  }, { indent: 1 }),
-  line('labor-training', '  Employee Training', 'account', {
-    type: 'gl_accounts', accounts: ['6150'], departments: dept,
-  }, { indent: 1 }),
-  line('labor-other', '  Other Benefits', 'account', {
-    type: 'gl_accounts', accounts: ['6170'], departments: dept,
+  line('labor-svccharge-dist', '  Service Charge Distribution', 'account', {
+    type: 'gl_accounts', accounts: ['6610000'], departments: dept,
   }, { indent: 1 }),
   line('total-benefits', '  Total Benefits', 'subtotal', {
-    type: 'sum', lineIds: ['labor-payrolltax', 'labor-health', 'labor-workcomp', 'labor-retirement', 'labor-meals', 'labor-training', 'labor-other'],
+    type: 'sum', lineIds: ['labor-payrolltax', 'labor-insurance', 'labor-benefits', 'labor-bonuses', 'labor-svccharge-dist'],
   }, { indent: 1, underline: 'single' }),
 
   line('total-labor', 'TOTAL LABOR COSTS', 'total', {
@@ -133,47 +109,42 @@ const LINES: ReportLineItem[] = [
   // ── OTHER EXPENSES ───────────────────────────────────────────────────
 
   line('header-other', 'OTHER EXPENSES', 'header', { type: 'none' }, { bold: true }),
-  line('exp-guest-supplies', '  Guest Supplies', 'account', {
-    type: 'gl_accounts', accounts: ['7000'], departments: dept,
+  line('exp-guest-amenities', '  Guest Amenities', 'account', {
+    type: 'gl_accounts', accounts: ['7110000', '7111000', '7112000', '7113000', '7114000'], departments: dept,
   }, { indent: 1 }),
-  line('exp-cleaning', '  Cleaning Supplies', 'account', {
-    type: 'gl_accounts', accounts: ['7010'], departments: dept,
+  line('exp-commissions-fees', '  Commissions & Fees', 'account', {
+    type: 'gl_accounts', accounts: ['7410000', '7411000', '7412000', '7420000', '7421000'], departments: dept,
   }, { indent: 1 }),
-  line('exp-laundry', '  Laundry & Linen', 'account', {
-    type: 'gl_accounts', accounts: ['7020'], departments: dept,
+  line('exp-contract-services', '  Contract Services', 'account', {
+    type: 'gl_accounts', accounts: ['7501060', '7510000', '7512000', '7513000', '7514000', '7515000', '7516000', '7517000', '7518000', '7519000', '7520000'], departments: dept,
   }, { indent: 1 }),
   line('exp-uniforms', '  Uniforms', 'account', {
-    type: 'gl_accounts', accounts: ['7030'], departments: dept,
+    type: 'gl_accounts', accounts: ['7610000', '7611000', '7612000'], departments: dept,
   }, { indent: 1 }),
-  line('exp-commissions', '  Commissions', 'account', {
-    type: 'gl_accounts', accounts: ['7040'], departments: dept,
+  line('exp-guest-room-supplies', '  Guest Room Supplies', 'account', {
+    type: 'gl_accounts', accounts: ['7310000', '7311000'], departments: dept,
   }, { indent: 1 }),
-  line('exp-reservations', '  Reservation Costs', 'account', {
-    type: 'gl_accounts', accounts: ['7050'], departments: dept,
+  line('exp-tv-cable', '  TV/Cable', 'account', {
+    type: 'gl_accounts', accounts: ['7301150'], departments: dept,
   }, { indent: 1 }),
-  line('exp-ta-commissions', '  Travel Agent Commissions', 'account', {
-    type: 'gl_accounts', accounts: ['7060'], departments: dept,
+  line('exp-equipment-rental', '  Equipment Rental', 'account', {
+    type: 'gl_accounts', accounts: ['7910000'], departments: dept,
   }, { indent: 1 }),
-  line('exp-ota-commissions', '  OTA Commissions', 'account', {
-    type: 'gl_accounts', accounts: ['7070'], departments: dept,
+  line('exp-licenses-permits', '  Licenses & Permits', 'account', {
+    type: 'gl_accounts', accounts: ['7920000'], departments: dept,
   }, { indent: 1 }),
-  line('exp-cc-commissions', '  Credit Card Commissions', 'account', {
-    type: 'gl_accounts', accounts: ['7080'], departments: dept,
+  line('exp-training', '  Training', 'account', {
+    type: 'gl_accounts', accounts: ['7922000'], departments: dept,
   }, { indent: 1 }),
-  line('exp-complimentary', '  Complimentary Services', 'account', {
-    type: 'gl_accounts', accounts: ['7090'], departments: dept,
-  }, { indent: 1 }),
-  line('exp-operating-supplies', '  Operating Supplies', 'account', {
-    type: 'gl_accounts', accounts: ['7110'], departments: dept,
-  }, { indent: 1 }),
-  line('exp-telecom', '  Telecommunications', 'account', {
-    type: 'gl_accounts', accounts: ['7140'], departments: dept,
-  }, { indent: 1 }),
-  line('exp-transportation', '  Transportation', 'account', {
-    type: 'gl_accounts', accounts: ['7150'], departments: dept,
+  line('exp-other-dept', '  Other Departmental', 'account', {
+    type: 'gl_accounts', accounts: ['7929000'], departments: dept,
   }, { indent: 1 }),
   line('total-other', 'TOTAL OTHER EXPENSES', 'total', {
-    type: 'sum', lineIds: ['exp-guest-supplies', 'exp-cleaning', 'exp-laundry', 'exp-uniforms', 'exp-commissions', 'exp-reservations', 'exp-ta-commissions', 'exp-ota-commissions', 'exp-cc-commissions', 'exp-complimentary', 'exp-operating-supplies', 'exp-telecom', 'exp-transportation'],
+    type: 'sum', lineIds: [
+      'exp-guest-amenities', 'exp-commissions-fees', 'exp-contract-services',
+      'exp-uniforms', 'exp-guest-room-supplies', 'exp-tv-cable',
+      'exp-equipment-rental', 'exp-licenses-permits', 'exp-training', 'exp-other-dept',
+    ],
   }, { bold: true, underline: 'single' }),
   line('blank-4', '', 'blank', { type: 'none' }),
 

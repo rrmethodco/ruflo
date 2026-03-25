@@ -7,6 +7,7 @@
  * - Undistributed Operating Expenses → Gross Operating Profit (GOP)
  * - Management Fees → Income Before Non-Operating I&E
  * - Non-Operating I&E → EBITDA
+ * - D&A → EBITDA after D&A
  * - Fixed Charges → Net Operating Income (NOI)
  */
 
@@ -45,12 +46,19 @@ const LINES: ReportLineItem[] = [
 
   // Rooms
   line('rooms-revenue', '  Rooms Revenue', 'account', {
-    type: 'gl_range', from: '4000', to: '4099',
+    type: 'gl_range', from: '4110010', to: '4110450',
     departments: [USALIDepartment.ROOMS],
   }, { indent: 1, signConvention: 'reversed' }),
-  line('rooms-expense', '  Rooms Expense', 'account', {
-    type: 'gl_range', from: '5000', to: '7199',
+  line('rooms-labor', '  Rooms Labor', 'account', {
+    type: 'gl_range', from: '6110000', to: '6610000',
     departments: [USALIDepartment.ROOMS],
+  }, { indent: 1 }),
+  line('rooms-other-expense', '  Rooms Other Expenses', 'account', {
+    type: 'gl_range', from: '7110000', to: '7929000',
+    departments: [USALIDepartment.ROOMS],
+  }, { indent: 1 }),
+  line('rooms-expense', '  Rooms Expense', 'total', {
+    type: 'sum', lineIds: ['rooms-labor', 'rooms-other-expense'],
   }, { indent: 1 }),
   line('rooms-dept-income', '  Rooms Department Income', 'net', {
     type: 'difference', minuend: 'rooms-revenue', subtrahend: 'rooms-expense',
@@ -59,12 +67,23 @@ const LINES: ReportLineItem[] = [
 
   // Food & Beverage
   line('fb-revenue', '  Food & Beverage Revenue', 'account', {
-    type: 'gl_range', from: '4100', to: '4199',
+    type: 'gl_range', from: '4210000', to: '4210350',
     departments: [USALIDepartment.FOOD_AND_BEVERAGE],
   }, { indent: 1, signConvention: 'reversed' }),
-  line('fb-expense', '  Food & Beverage Expense', 'account', {
-    type: 'gl_range', from: '5100', to: '7199',
+  line('fb-cogs', '  F&B Cost of Sales', 'account', {
+    type: 'gl_range', from: '5101000', to: '5801000',
     departments: [USALIDepartment.FOOD_AND_BEVERAGE],
+  }, { indent: 1 }),
+  line('fb-labor', '  F&B Labor', 'account', {
+    type: 'gl_range', from: '6110000', to: '6610000',
+    departments: [USALIDepartment.FOOD_AND_BEVERAGE],
+  }, { indent: 1 }),
+  line('fb-other-expense', '  F&B Other Expenses', 'account', {
+    type: 'gl_range', from: '7110000', to: '7929000',
+    departments: [USALIDepartment.FOOD_AND_BEVERAGE],
+  }, { indent: 1 }),
+  line('fb-expense', '  Food & Beverage Expense', 'total', {
+    type: 'sum', lineIds: ['fb-cogs', 'fb-labor', 'fb-other-expense'],
   }, { indent: 1 }),
   line('fb-dept-income', '  Food & Beverage Department Income', 'net', {
     type: 'difference', minuend: 'fb-revenue', subtrahend: 'fb-expense',
@@ -73,25 +92,27 @@ const LINES: ReportLineItem[] = [
 
   // Other Operated Departments
   line('other-revenue', '  Other Operated Revenue', 'account', {
-    type: 'gl_range', from: '4200', to: '4299',
+    type: 'gl_range', from: '4310000', to: '4399030',
     departments: [
       USALIDepartment.OTHER_OPERATED_SPA,
-      USALIDepartment.OTHER_OPERATED_GOLF,
       USALIDepartment.OTHER_OPERATED_PARKING,
-      USALIDepartment.OTHER_OPERATED_TELECOM,
       USALIDepartment.OTHER_OPERATED_RETAIL,
       USALIDepartment.OTHER_OPERATED_RECREATION,
+      USALIDepartment.OTHER_OPERATED_BUSINESS_CENTER,
+      USALIDepartment.OTHER_OPERATED_GOLF,
+      USALIDepartment.OTHER_OPERATED_OTHER,
     ],
   }, { indent: 1, signConvention: 'reversed' }),
   line('other-expense', '  Other Operated Expense', 'account', {
-    type: 'gl_range', from: '5200', to: '7199',
+    type: 'gl_range', from: '5101000', to: '7929000',
     departments: [
       USALIDepartment.OTHER_OPERATED_SPA,
-      USALIDepartment.OTHER_OPERATED_GOLF,
       USALIDepartment.OTHER_OPERATED_PARKING,
-      USALIDepartment.OTHER_OPERATED_TELECOM,
       USALIDepartment.OTHER_OPERATED_RETAIL,
       USALIDepartment.OTHER_OPERATED_RECREATION,
+      USALIDepartment.OTHER_OPERATED_BUSINESS_CENTER,
+      USALIDepartment.OTHER_OPERATED_GOLF,
+      USALIDepartment.OTHER_OPERATED_OTHER,
     ],
   }, { indent: 1 }),
   line('other-dept-income', '  Other Operated Department Income', 'net', {
@@ -101,48 +122,110 @@ const LINES: ReportLineItem[] = [
 
   // Miscellaneous Income
   line('misc-income', '  Rental & Other Income', 'account', {
-    type: 'gl_range', from: '4300', to: '4399',
+    type: 'gl_range', from: '4399000', to: '4399030',
+    departments: [USALIDepartment.MISCELLANEOUS_INCOME],
+  }, { indent: 1, signConvention: 'reversed' }),
+  line('blank-4a', '', 'blank', { type: 'none' }),
+
+  // Residential Rental Income
+  line('residential-rental', '  Residential Rental Income', 'account', {
+    type: 'gl_range', from: '4421000', to: '4421300',
+  }, { indent: 1, signConvention: 'reversed' }),
+
+  // Retail Rental Income
+  line('retail-rental', '  Retail Rental Income', 'account', {
+    type: 'gl_range', from: '4431000', to: '4431300',
+  }, { indent: 1, signConvention: 'reversed' }),
+
+  // Fee Revenue
+  line('fee-revenue', '  Fee Revenue', 'account', {
+    type: 'gl_range', from: '4811000', to: '4819000',
   }, { indent: 1, signConvention: 'reversed' }),
   line('blank-5', '', 'blank', { type: 'none' }),
 
   // ── TOTAL OPERATED DEPARTMENTS ───────────────────────────────────────
 
   line('total-revenue', 'TOTAL REVENUE', 'total', {
-    type: 'sum', lineIds: ['rooms-revenue', 'fb-revenue', 'other-revenue', 'misc-income'],
+    type: 'sum', lineIds: [
+      'rooms-revenue', 'fb-revenue', 'other-revenue',
+      'misc-income', 'residential-rental', 'retail-rental', 'fee-revenue',
+    ],
   }, { bold: true }),
   line('total-dept-expense', 'TOTAL DEPARTMENTAL EXPENSES', 'total', {
     type: 'sum', lineIds: ['rooms-expense', 'fb-expense', 'other-expense'],
   }, { bold: true }),
   line('total-dept-income', 'TOTAL DEPARTMENTAL INCOME', 'total', {
-    type: 'sum', lineIds: ['rooms-dept-income', 'fb-dept-income', 'other-dept-income', 'misc-income'],
+    type: 'sum', lineIds: [
+      'rooms-dept-income', 'fb-dept-income', 'other-dept-income',
+      'misc-income', 'residential-rental', 'retail-rental', 'fee-revenue',
+    ],
   }, { bold: true, underline: 'double' }),
   line('blank-6', '', 'blank', { type: 'none' }),
 
   // ── UNDISTRIBUTED OPERATING EXPENSES ─────────────────────────────────
 
   line('header-undist', 'UNDISTRIBUTED OPERATING EXPENSES', 'header', { type: 'none' }, { bold: true }),
-  line('ag-expense', '  Administrative & General', 'account', {
-    type: 'gl_range', from: '6000', to: '7299',
+
+  // A&G
+  line('ag-labor', '  A&G Labor', 'account', {
+    type: 'gl_range', from: '6110000', to: '6610000',
     departments: [USALIDepartment.ADMIN_AND_GENERAL],
   }, { indent: 1 }),
-  line('sm-expense', '  Sales & Marketing', 'account', {
-    type: 'gl_range', from: '6000', to: '7399',
-    departments: [USALIDepartment.SALES_AND_MARKETING],
+  line('ag-other', '  A&G Other Expenses', 'account', {
+    type: 'gl_range', from: '8110000', to: '8190000',
+    departments: [USALIDepartment.ADMIN_AND_GENERAL],
   }, { indent: 1 }),
-  line('pom-expense', '  Property Operations & Maintenance', 'account', {
-    type: 'gl_range', from: '6000', to: '7499',
-    departments: [USALIDepartment.PROPERTY_OPERATIONS],
+  line('ag-expense', '  Administrative & General', 'total', {
+    type: 'sum', lineIds: ['ag-labor', 'ag-other'],
   }, { indent: 1 }),
-  line('util-expense', '  Utilities', 'account', {
-    type: 'gl_range', from: '7500', to: '7549',
-    departments: [USALIDepartment.UTILITIES],
-  }, { indent: 1 }),
-  line('it-expense', '  Information & Telecommunications', 'account', {
-    type: 'gl_range', from: '6000', to: '7699',
+
+  // IT
+  line('it-labor', '  IT Labor', 'account', {
+    type: 'gl_range', from: '6110000', to: '6610000',
     departments: [USALIDepartment.INFORMATION_TECHNOLOGY],
   }, { indent: 1 }),
+  line('it-other', '  IT Other Expenses', 'account', {
+    type: 'gl_range', from: '8210000', to: '8231500',
+    departments: [USALIDepartment.INFORMATION_TECHNOLOGY],
+  }, { indent: 1 }),
+  line('it-expense', '  Information & Telecommunications', 'total', {
+    type: 'sum', lineIds: ['it-labor', 'it-other'],
+  }, { indent: 1 }),
+
+  // S&M
+  line('sm-labor', '  S&M Labor', 'account', {
+    type: 'gl_range', from: '6110000', to: '6610000',
+    departments: [USALIDepartment.SALES_AND_MARKETING],
+  }, { indent: 1 }),
+  line('sm-other', '  S&M Other Expenses', 'account', {
+    type: 'gl_range', from: '8310000', to: '8361800',
+    departments: [USALIDepartment.SALES_AND_MARKETING],
+  }, { indent: 1 }),
+  line('sm-expense', '  Sales & Marketing', 'total', {
+    type: 'sum', lineIds: ['sm-labor', 'sm-other'],
+  }, { indent: 1 }),
+
+  // POM
+  line('pom-labor', '  POM Labor', 'account', {
+    type: 'gl_range', from: '6110000', to: '6610000',
+    departments: [USALIDepartment.PROPERTY_OPERATIONS],
+  }, { indent: 1 }),
+  line('pom-other', '  POM Other Expenses', 'account', {
+    type: 'gl_range', from: '8410000', to: '8431700',
+    departments: [USALIDepartment.PROPERTY_OPERATIONS],
+  }, { indent: 1 }),
+  line('pom-expense', '  Property Operations & Maintenance', 'total', {
+    type: 'sum', lineIds: ['pom-labor', 'pom-other'],
+  }, { indent: 1 }),
+
+  // Utilities
+  line('util-expense', '  Utilities', 'account', {
+    type: 'gl_range', from: '8511100', to: '8531500',
+    departments: [USALIDepartment.UTILITIES],
+  }, { indent: 1 }),
+
   line('total-undist', 'TOTAL UNDISTRIBUTED EXPENSES', 'total', {
-    type: 'sum', lineIds: ['ag-expense', 'sm-expense', 'pom-expense', 'util-expense', 'it-expense'],
+    type: 'sum', lineIds: ['ag-expense', 'it-expense', 'sm-expense', 'pom-expense', 'util-expense'],
   }, { bold: true, underline: 'single' }),
   line('blank-7', '', 'blank', { type: 'none' }),
 
@@ -160,27 +243,34 @@ const LINES: ReportLineItem[] = [
 
   line('header-mgmt', 'MANAGEMENT FEES', 'header', { type: 'none' }, { bold: true }),
   line('mgmt-base', '  Base Management Fee', 'account', {
-    type: 'gl_accounts', accounts: ['8600'],
+    type: 'gl_accounts', accounts: ['8611100'],
     departments: [USALIDepartment.MANAGEMENT_FEES],
   }, { indent: 1 }),
   line('mgmt-incentive', '  Incentive Management Fee', 'account', {
-    type: 'gl_accounts', accounts: ['8610'],
+    type: 'gl_accounts', accounts: ['8611200'],
     departments: [USALIDepartment.MANAGEMENT_FEES],
   }, { indent: 1 }),
-  line('mgmt-franchise', '  Franchise/Royalty Fee', 'account', {
-    type: 'gl_accounts', accounts: ['8620'],
+  line('mgmt-asset', '  Asset Management Fee', 'account', {
+    type: 'gl_accounts', accounts: ['8611300'],
     departments: [USALIDepartment.MANAGEMENT_FEES],
   }, { indent: 1 }),
-  line('mgmt-brand', '  Marketing/Brand Fee', 'account', {
-    type: 'gl_accounts', accounts: ['8630'],
+  line('mgmt-centralized', '  Centralized Services Fee', 'account', {
+    type: 'gl_accounts', accounts: ['8611400'],
     departments: [USALIDepartment.MANAGEMENT_FEES],
   }, { indent: 1 }),
-  line('mgmt-reservation', '  Reservation Contribution', 'account', {
-    type: 'gl_accounts', accounts: ['8640'],
+  line('mgmt-owner', '  Owner Fee', 'account', {
+    type: 'gl_accounts', accounts: ['8611500'],
+    departments: [USALIDepartment.MANAGEMENT_FEES],
+  }, { indent: 1 }),
+  line('mgmt-license', '  License Fee', 'account', {
+    type: 'gl_accounts', accounts: ['8611600'],
     departments: [USALIDepartment.MANAGEMENT_FEES],
   }, { indent: 1 }),
   line('total-mgmt', 'TOTAL MANAGEMENT FEES', 'total', {
-    type: 'sum', lineIds: ['mgmt-base', 'mgmt-incentive', 'mgmt-franchise', 'mgmt-brand', 'mgmt-reservation'],
+    type: 'sum', lineIds: [
+      'mgmt-base', 'mgmt-incentive', 'mgmt-asset',
+      'mgmt-centralized', 'mgmt-owner', 'mgmt-license',
+    ],
   }, { bold: true, underline: 'single' }),
   line('blank-9', '', 'blank', { type: 'none' }),
 
@@ -194,16 +284,26 @@ const LINES: ReportLineItem[] = [
   // ── NON-OPERATING INCOME & EXPENSES ──────────────────────────────────
 
   line('header-nonop', 'NON-OPERATING INCOME & EXPENSES', 'header', { type: 'none' }, { bold: true }),
-  line('nonop-income', '  Non-Operating Income', 'account', {
-    type: 'gl_range', from: '8000', to: '8049',
+  line('nonop-interest-income', '  Interest Income', 'account', {
+    type: 'gl_range', from: '8712000', to: '8712300',
     departments: [USALIDepartment.NON_OPERATING],
   }, { indent: 1, signConvention: 'reversed' }),
-  line('nonop-expense', '  Non-Operating Expenses', 'account', {
-    type: 'gl_range', from: '8050', to: '8110',
+  line('nonop-financing', '  Financing Costs', 'account', {
+    type: 'gl_range', from: '8711000', to: '8711300',
+    departments: [USALIDepartment.NON_OPERATING],
+  }, { indent: 1 }),
+  line('nonop-gains-losses', '  Gains & Losses', 'account', {
+    type: 'gl_range', from: '8713000', to: '8713200',
+    departments: [USALIDepartment.NON_OPERATING],
+  }, { indent: 1 }),
+  line('nonop-other', '  Other Non-Operating', 'account', {
+    type: 'gl_range', from: '8719000', to: '8719200',
     departments: [USALIDepartment.NON_OPERATING],
   }, { indent: 1 }),
   line('total-nonop', 'NET NON-OPERATING I&E', 'net', {
-    type: 'difference', minuend: 'nonop-income', subtrahend: 'nonop-expense',
+    type: 'sum', lineIds: [
+      'nonop-interest-income', 'nonop-financing', 'nonop-gains-losses', 'nonop-other',
+    ],
   }, { bold: true, underline: 'single' }),
   line('blank-11', '', 'blank', { type: 'none' }),
 
@@ -217,34 +317,62 @@ const LINES: ReportLineItem[] = [
   }, { indent: 1 }),
   line('blank-12', '', 'blank', { type: 'none' }),
 
+  // ── DEPRECIATION & AMORTIZATION ────────────────────────────────────
+
+  line('header-da', 'DEPRECIATION & AMORTIZATION', 'header', { type: 'none' }, { bold: true }),
+  line('da-depreciation', '  Depreciation', 'account', {
+    type: 'gl_range', from: '8910000', to: '8913400',
+    departments: [USALIDepartment.DEPRECIATION],
+  }, { indent: 1 }),
+  line('da-amortization', '  Amortization', 'account', {
+    type: 'gl_range', from: '8920000', to: '8922200',
+    departments: [USALIDepartment.AMORTIZATION],
+  }, { indent: 1 }),
+  line('total-da', 'TOTAL DEPRECIATION & AMORTIZATION', 'total', {
+    type: 'sum', lineIds: ['da-depreciation', 'da-amortization'],
+  }, { bold: true, underline: 'single' }),
+  line('blank-12a', '', 'blank', { type: 'none' }),
+
+  line('ebitda-after-da', 'EBITDA AFTER D&A', 'net', {
+    type: 'difference', minuend: 'ebitda', subtrahend: 'total-da',
+  }, { bold: true }),
+  line('blank-12b', '', 'blank', { type: 'none' }),
+
   // ── FIXED CHARGES ────────────────────────────────────────────────────
 
   line('header-fixed', 'FIXED CHARGES', 'header', { type: 'none' }, { bold: true }),
+  line('fixed-rent', '  Rent', 'account', {
+    type: 'gl_range', from: '8811100', to: '8811400',
+    departments: [USALIDepartment.RENT],
+  }, { indent: 1 }),
   line('fixed-insurance', '  Property Insurance', 'account', {
-    type: 'gl_accounts', accounts: ['8500'],
-    departments: [USALIDepartment.FIXED_CHARGES],
+    type: 'gl_range', from: '8821100', to: '8821400',
+    departments: [USALIDepartment.INSURANCE],
   }, { indent: 1 }),
-  line('fixed-property-tax', '  Property Tax', 'account', {
-    type: 'gl_accounts', accounts: ['8510'],
-    departments: [USALIDepartment.FIXED_CHARGES],
+  line('fixed-property-tax', '  Real Estate Taxes', 'account', {
+    type: 'gl_range', from: '8831100', to: '8831300',
+    departments: [USALIDepartment.PROPERTY_TAXES],
   }, { indent: 1 }),
-  line('fixed-land-rent', '  Ground Lease/Land Rent', 'account', {
-    type: 'gl_accounts', accounts: ['8520'],
-    departments: [USALIDepartment.FIXED_CHARGES],
+  line('fixed-franchise', '  Franchise/Brand Fees', 'account', {
+    type: 'gl_range', from: '8841100', to: '8841300',
+    departments: [USALIDepartment.OTHER_FIXED_CHARGES],
   }, { indent: 1 }),
-  line('fixed-equip-lease', '  Equipment Lease', 'account', {
-    type: 'gl_accounts', accounts: ['8530'],
-    departments: [USALIDepartment.FIXED_CHARGES],
+  line('fixed-other', '  Other Fixed Charges', 'account', {
+    type: 'gl_range', from: '8850000', to: '8851900',
+    departments: [USALIDepartment.OTHER_FIXED_CHARGES],
   }, { indent: 1 }),
   line('total-fixed', 'TOTAL FIXED CHARGES', 'total', {
-    type: 'sum', lineIds: ['fixed-insurance', 'fixed-property-tax', 'fixed-land-rent', 'fixed-equip-lease'],
+    type: 'sum', lineIds: [
+      'fixed-rent', 'fixed-insurance', 'fixed-property-tax',
+      'fixed-franchise', 'fixed-other',
+    ],
   }, { bold: true, underline: 'single' }),
   line('blank-13', '', 'blank', { type: 'none' }),
 
   // ── NET OPERATING INCOME ─────────────────────────────────────────────
 
   line('noi', 'NET OPERATING INCOME (NOI)', 'net', {
-    type: 'difference', minuend: 'ebitda', subtrahend: 'total-fixed',
+    type: 'difference', minuend: 'ebitda-after-da', subtrahend: 'total-fixed',
   }, { bold: true, underline: 'double' }),
   line('noi-pct', '  NOI %', 'ratio', {
     type: 'ratio', numerator: 'noi', denominator: 'total-revenue', format: 'percentage',

@@ -11,224 +11,68 @@ const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
 const DATES = ["3/23", "3/24", "3/25", "3/26", "3/27", "3/28", "3/29"];
 
 type Dept = "foh" | "boh" | "mgmt";
+type S = { t: string; r: string; d: Dept } | null;
 
-interface ShiftEntry {
-  time: string;
-  role: string;
-  dept: Dept;
-}
+interface Employee { name: string; role: string; dept: Dept; shifts: S[]; hrs: number }
 
-interface Employee {
-  name: string;
-  role: string;
-  dept: Dept;
-  shifts: (ShiftEntry | null)[];
-  totalHours: number;
-}
+const f = (t: string, r: string, d: Dept): S => ({ t, r, d });
 
 const employees: Employee[] = [
-  {
-    name: "Maria Santos",
-    role: "Server",
-    dept: "foh",
-    shifts: [
-      { time: "11:00A-7:00P", role: "Server", dept: "foh" },
-      null,
-      { time: "4:00P-11:00P", role: "Server", dept: "foh" },
-      { time: "11:00A-7:00P", role: "Server", dept: "foh" },
-      { time: "4:00P-11:00P", role: "Server", dept: "foh" },
-      { time: "4:00P-11:00P", role: "Server", dept: "foh" },
-      null,
-    ],
-    totalHours: 39,
-  },
-  {
-    name: "James Chen",
-    role: "Server",
-    dept: "foh",
-    shifts: [
-      { time: "4:00P-11:00P", role: "Server", dept: "foh" },
-      { time: "4:00P-11:00P", role: "Server", dept: "foh" },
-      null,
-      { time: "4:00P-11:00P", role: "Server", dept: "foh" },
-      { time: "4:00P-12:00A", role: "Server", dept: "foh" },
-      { time: "11:00A-8:00P", role: "Server", dept: "foh" },
-      null,
-    ],
-    totalHours: 37,
-  },
-  {
-    name: "Aisha Johnson",
-    role: "Bartender",
-    dept: "foh",
-    shifts: [
-      null,
-      { time: "4:00P-12:00A", role: "Bartender", dept: "foh" },
-      { time: "4:00P-12:00A", role: "Bartender", dept: "foh" },
-      null,
-      { time: "4:00P-12:00A", role: "Bartender", dept: "foh" },
-      { time: "4:00P-12:00A", role: "Bartender", dept: "foh" },
-      { time: "4:00P-11:00P", role: "Bartender", dept: "foh" },
-    ],
-    totalHours: 39,
-  },
-  {
-    name: "Tyler Brooks",
-    role: "Host",
-    dept: "foh",
-    shifts: [
-      { time: "11:00A-4:00P", role: "Host", dept: "foh" },
-      { time: "11:00A-4:00P", role: "Host", dept: "foh" },
-      null,
-      { time: "4:00P-10:00P", role: "Host", dept: "foh" },
-      { time: "4:00P-10:00P", role: "Host", dept: "foh" },
-      { time: "11:00A-5:00P", role: "Host", dept: "foh" },
-      null,
-    ],
-    totalHours: 28,
-  },
-  {
-    name: "Rosa Gutierrez",
-    role: "Busser",
-    dept: "foh",
-    shifts: [
-      { time: "11:00A-5:00P", role: "Busser", dept: "foh" },
-      null,
-      { time: "5:00P-11:00P", role: "Busser", dept: "foh" },
-      { time: "5:00P-11:00P", role: "Busser", dept: "foh" },
-      { time: "5:00P-11:00P", role: "Busser", dept: "foh" },
-      { time: "4:00P-11:00P", role: "Busser", dept: "foh" },
-      null,
-    ],
-    totalHours: 31,
-  },
-  {
-    name: "Marcus Williams",
-    role: "Line Cook",
-    dept: "boh",
-    shifts: [
-      { time: "10:00A-6:00P", role: "Line Cook", dept: "boh" },
-      { time: "10:00A-6:00P", role: "Line Cook", dept: "boh" },
-      { time: "2:00P-10:00P", role: "Line Cook", dept: "boh" },
-      null,
-      { time: "2:00P-10:00P", role: "Line Cook", dept: "boh" },
-      { time: "10:00A-6:00P", role: "Line Cook", dept: "boh" },
-      null,
-    ],
-    totalHours: 40,
-  },
-  {
-    name: "David Park",
-    role: "Line Cook",
-    dept: "boh",
-    shifts: [
-      null,
-      { time: "2:00P-10:00P", role: "Line Cook", dept: "boh" },
-      { time: "10:00A-6:00P", role: "Line Cook", dept: "boh" },
-      { time: "2:00P-10:00P", role: "Line Cook", dept: "boh" },
-      { time: "2:00P-10:00P", role: "Line Cook", dept: "boh" },
-      { time: "2:00P-11:00P", role: "Line Cook", dept: "boh" },
-      null,
-    ],
-    totalHours: 41,
-  },
-  {
-    name: "Sam Nguyen",
-    role: "Dishwasher",
-    dept: "boh",
-    shifts: [
-      { time: "10:00A-4:00P", role: "Dishwasher", dept: "boh" },
-      null,
-      { time: "4:00P-10:00P", role: "Dishwasher", dept: "boh" },
-      { time: "4:00P-10:00P", role: "Dishwasher", dept: "boh" },
-      { time: "4:00P-10:00P", role: "Dishwasher", dept: "boh" },
-      { time: "10:00A-6:00P", role: "Dishwasher", dept: "boh" },
-      null,
-    ],
-    totalHours: 32,
-  },
-  {
-    name: "Karen Mitchell",
-    role: "Manager",
-    dept: "mgmt",
-    shifts: [
-      { time: "10:00A-6:00P", role: "Manager", dept: "mgmt" },
-      { time: "10:00A-6:00P", role: "Manager", dept: "mgmt" },
-      { time: "3:00P-11:00P", role: "Manager", dept: "mgmt" },
-      { time: "3:00P-11:00P", role: "Manager", dept: "mgmt" },
-      { time: "3:00P-11:00P", role: "Manager", dept: "mgmt" },
-      null,
-      null,
-    ],
-    totalHours: 40,
-  },
-  {
-    name: "Luis Fernandez",
-    role: "Line Cook",
-    dept: "boh",
-    shifts: [
-      { time: "6:00A-2:00P", role: "Prep Cook", dept: "boh" },
-      { time: "6:00A-2:00P", role: "Prep Cook", dept: "boh" },
-      null,
-      { time: "6:00A-2:00P", role: "Prep Cook", dept: "boh" },
-      { time: "6:00A-2:00P", role: "Prep Cook", dept: "boh" },
-      { time: "6:00A-2:00P", role: "Prep Cook", dept: "boh" },
-      null,
-    ],
-    totalHours: 40,
-  },
+  { name: "Maria Santos", role: "Server", dept: "foh", hrs: 39,
+    shifts: [f("11A-7P","Server","foh"), null, f("4P-11P","Server","foh"), f("11A-7P","Server","foh"), f("4P-11P","Server","foh"), f("4P-11P","Server","foh"), null] },
+  { name: "James Chen", role: "Server", dept: "foh", hrs: 37,
+    shifts: [f("4P-11P","Server","foh"), f("4P-11P","Server","foh"), null, f("4P-11P","Server","foh"), f("4P-12A","Server","foh"), f("11A-8P","Server","foh"), null] },
+  { name: "Aisha Johnson", role: "Bartender", dept: "foh", hrs: 39,
+    shifts: [null, f("4P-12A","Bartender","foh"), f("4P-12A","Bartender","foh"), null, f("4P-12A","Bartender","foh"), f("4P-12A","Bartender","foh"), f("4P-11P","Bartender","foh")] },
+  { name: "Tyler Brooks", role: "Host", dept: "foh", hrs: 28,
+    shifts: [f("11A-4P","Host","foh"), f("11A-4P","Host","foh"), null, f("4P-10P","Host","foh"), f("4P-10P","Host","foh"), f("11A-5P","Host","foh"), null] },
+  { name: "Rosa Gutierrez", role: "Busser", dept: "foh", hrs: 31,
+    shifts: [f("11A-5P","Busser","foh"), null, f("5P-11P","Busser","foh"), f("5P-11P","Busser","foh"), f("5P-11P","Busser","foh"), f("4P-11P","Busser","foh"), null] },
+  { name: "Marcus Williams", role: "Line Cook", dept: "boh", hrs: 40,
+    shifts: [f("10A-6P","Line Cook","boh"), f("10A-6P","Line Cook","boh"), f("2P-10P","Line Cook","boh"), null, f("2P-10P","Line Cook","boh"), f("10A-6P","Line Cook","boh"), null] },
+  { name: "David Park", role: "Line Cook", dept: "boh", hrs: 41,
+    shifts: [null, f("2P-10P","Line Cook","boh"), f("10A-6P","Line Cook","boh"), f("2P-10P","Line Cook","boh"), f("2P-10P","Line Cook","boh"), f("2P-11P","Line Cook","boh"), null] },
+  { name: "Sam Nguyen", role: "Dishwasher", dept: "boh", hrs: 32,
+    shifts: [f("10A-4P","Dishwasher","boh"), null, f("4P-10P","Dishwasher","boh"), f("4P-10P","Dishwasher","boh"), f("4P-10P","Dishwasher","boh"), f("10A-6P","Dishwasher","boh"), null] },
+  { name: "Karen Mitchell", role: "Manager", dept: "mgmt", hrs: 40,
+    shifts: [f("10A-6P","Manager","mgmt"), f("10A-6P","Manager","mgmt"), f("3P-11P","Manager","mgmt"), f("3P-11P","Manager","mgmt"), f("3P-11P","Manager","mgmt"), null, null] },
+  { name: "Luis Fernandez", role: "Line Cook", dept: "boh", hrs: 40,
+    shifts: [f("6A-2P","Prep Cook","boh"), f("6A-2P","Prep Cook","boh"), null, f("6A-2P","Prep Cook","boh"), f("6A-2P","Prep Cook","boh"), f("6A-2P","Prep Cook","boh"), null] },
 ];
 
-const summaryBar = {
-  totalHours: employees.reduce((s, e) => s + e.totalHours, 0),
-  totalCost: 8_435,
-  openShifts: 4,
-  overtimeAlerts: 2,
+const summary = {
+  totalHours: employees.reduce((s, e) => s + e.hrs, 0),
+  totalCost: 8_435, openShifts: 4, overtimeAlerts: 2,
 };
 
 const openShifts = [
   { role: "Server", date: "Fri 3/27", time: "11:00 AM - 4:00 PM", severity: "critical" as const },
+  { role: "Line Cook", date: "Sat 3/28", time: "6:00 PM - 11:00 PM", severity: "critical" as const },
   { role: "Busser", date: "Sun 3/29", time: "4:00 PM - 10:00 PM", severity: "warning" as const },
   { role: "Dishwasher", date: "Sun 3/29", time: "4:00 PM - 10:00 PM", severity: "warning" as const },
-  { role: "Line Cook", date: "Sat 3/28", time: "6:00 PM - 11:00 PM", severity: "critical" as const },
 ];
 
 const overtimeAlerts = [
-  {
-    name: "David Park",
-    projected: 41,
-    threshold: 40,
-    overtime: 1,
-    costImpact: 36,
-  },
-  {
-    name: "Marcus Williams",
-    projected: 40,
-    threshold: 40,
-    overtime: 0,
-    costImpact: 0,
-    note: "At threshold - monitor closely",
-  },
+  { name: "David Park", projected: 41, threshold: 40, overtime: 1, costImpact: 36, note: "" },
+  { name: "Marcus Williams", projected: 40, threshold: 40, overtime: 0, costImpact: 0, note: "At threshold - monitor closely" },
 ];
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function deptColor(dept: Dept): string {
-  if (dept === "foh") return "bg-emerald-500/20 text-emerald-300 border-emerald-500/30";
-  if (dept === "boh") return "bg-blue-500/20 text-blue-300 border-blue-500/30";
-  return "bg-purple-500/20 text-purple-300 border-purple-500/30";
+function deptColor(d: Dept) {
+  return d === "foh" ? "bg-emerald-500/20 text-emerald-300 border-emerald-500/30"
+    : d === "boh" ? "bg-blue-500/20 text-blue-300 border-blue-500/30"
+    : "bg-purple-500/20 text-purple-300 border-purple-500/30";
 }
 
-function deptDot(dept: Dept): string {
-  if (dept === "foh") return "bg-emerald-400";
-  if (dept === "boh") return "bg-blue-400";
-  return "bg-purple-400";
+function deptDot(d: Dept) {
+  return d === "foh" ? "bg-emerald-400" : d === "boh" ? "bg-blue-400" : "bg-purple-400";
 }
 
-function severityBadge(severity: "critical" | "warning"): string {
-  return severity === "critical"
+function severityBadge(s: "critical" | "warning") {
+  return s === "critical"
     ? "bg-red-500/20 text-red-400 border-red-500/30"
     : "bg-amber-500/20 text-amber-400 border-amber-500/30";
 }
@@ -247,24 +91,28 @@ export default function SchedulePage() {
           <p className="text-sm text-gray-400 mt-1">{WEEK_LABEL}</p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="flex items-center gap-1.5 text-xs text-gray-400">
-            <span className={`w-2.5 h-2.5 rounded-full ${deptDot("foh")}`} /> FOH
-          </span>
-          <span className="flex items-center gap-1.5 text-xs text-gray-400">
-            <span className={`w-2.5 h-2.5 rounded-full ${deptDot("boh")}`} /> BOH
-          </span>
-          <span className="flex items-center gap-1.5 text-xs text-gray-400">
-            <span className={`w-2.5 h-2.5 rounded-full ${deptDot("mgmt")}`} /> Mgmt
-          </span>
+          {(["foh", "boh", "mgmt"] as Dept[]).map((d) => (
+            <span key={d} className="flex items-center gap-1.5 text-xs text-gray-400">
+              <span className={`w-2.5 h-2.5 rounded-full ${deptDot(d)}`} />
+              {d === "mgmt" ? "Mgmt" : d.toUpperCase()}
+            </span>
+          ))}
         </div>
       </div>
 
       {/* Summary Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <SummaryCard label="Total Hours" value={fmt(summaryBar.totalHours)} />
-        <SummaryCard label="Total Cost" value={currency(summaryBar.totalCost)} />
-        <SummaryCard label="Open Shifts" value={String(summaryBar.openShifts)} alert={summaryBar.openShifts > 0} />
-        <SummaryCard label="OT Alerts" value={String(summaryBar.overtimeAlerts)} alert={summaryBar.overtimeAlerts > 0} />
+        {[
+          { label: "Total Hours", value: fmt(summary.totalHours), alert: false },
+          { label: "Total Cost", value: currency(summary.totalCost), alert: false },
+          { label: "Open Shifts", value: String(summary.openShifts), alert: true },
+          { label: "OT Alerts", value: String(summary.overtimeAlerts), alert: true },
+        ].map((c) => (
+          <div key={c.label} className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4">
+            <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">{c.label}</p>
+            <p className={`text-2xl font-bold ${c.alert ? "text-amber-400" : "text-white"}`}>{c.value}</p>
+          </div>
+        ))}
       </div>
 
       {/* Schedule Calendar Grid */}
@@ -298,9 +146,9 @@ export default function SchedulePage() {
                 {emp.shifts.map((shift, si) => (
                   <td key={si} className="py-2 px-1 text-center">
                     {shift ? (
-                      <div className={`rounded-lg border px-1.5 py-1 text-[10px] leading-tight ${deptColor(shift.dept)}`}>
-                        <div className="font-medium">{shift.time}</div>
-                        <div className="opacity-70">{shift.role}</div>
+                      <div className={`rounded-lg border px-1.5 py-1 text-[10px] leading-tight ${deptColor(shift.d)}`}>
+                        <div className="font-medium">{shift.t}</div>
+                        <div className="opacity-70">{shift.r}</div>
                       </div>
                     ) : (
                       <span className="text-gray-600 text-xs">OFF</span>
@@ -308,8 +156,8 @@ export default function SchedulePage() {
                   </td>
                 ))}
                 <td className="py-2 px-2 text-center">
-                  <span className={`font-semibold text-sm ${emp.totalHours >= 40 ? "text-amber-400" : "text-white"}`}>
-                    {emp.totalHours}
+                  <span className={`font-semibold text-sm ${emp.hrs >= 40 ? "text-amber-400" : "text-white"}`}>
+                    {emp.hrs}
                   </span>
                 </td>
               </tr>
@@ -346,9 +194,7 @@ export default function SchedulePage() {
               <div key={i} className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-sm font-medium">{a.name}</p>
-                  <span className="text-xs font-semibold text-amber-400">
-                    {a.projected}h / {a.threshold}h
-                  </span>
+                  <span className="text-xs font-semibold text-amber-400">{a.projected}h / {a.threshold}h</span>
                 </div>
                 {a.overtime > 0 && (
                   <div className="flex items-center justify-between text-xs text-gray-400">
@@ -356,10 +202,7 @@ export default function SchedulePage() {
                     <span>Cost impact: +{currency(a.costImpact)}</span>
                   </div>
                 )}
-                {a.note && (
-                  <p className="text-xs text-amber-400/70 mt-1">{a.note}</p>
-                )}
-                {/* progress bar */}
+                {a.note && <p className="text-xs text-amber-400/70 mt-1">{a.note}</p>}
                 <div className="mt-2 h-1.5 rounded-full bg-white/10 overflow-hidden">
                   <div
                     className={`h-full rounded-full ${a.projected > a.threshold ? "bg-amber-400" : "bg-emerald-400"}`}
@@ -371,25 +214,6 @@ export default function SchedulePage() {
           </div>
         </section>
       </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Sub-components
-// ---------------------------------------------------------------------------
-
-function SummaryCard({ label, value, alert }: {
-  label: string;
-  value: string;
-  alert?: boolean;
-}) {
-  return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur p-4">
-      <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">{label}</p>
-      <p className={`text-2xl font-bold ${alert ? "text-amber-400" : "text-white"}`}>
-        {value}
-      </p>
     </div>
   );
 }

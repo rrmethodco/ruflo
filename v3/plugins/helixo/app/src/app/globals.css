@@ -63,7 +63,7 @@ body {
 }
 
 .leo-nav-item.active {
-  @apply bg-white/8 text-white font-medium;
+  @apply bg-white/10 text-white font-medium;
 }
 
 /* Intelligence panel */

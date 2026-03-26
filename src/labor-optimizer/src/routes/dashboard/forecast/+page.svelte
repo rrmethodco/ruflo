@@ -310,7 +310,7 @@
   ]}
   {@const chartW = 900}
   {@const chartH = 300}
-  {@const padL = 75}
+  {@const padL = 95}
   {@const padR = 20}
   {@const padT = 20}
   {@const padB = 40}
@@ -369,7 +369,7 @@
 
     <!-- SVG Chart -->
     <div class="w-full overflow-x-auto" style="position: relative;">
-      <svg viewBox="-10 0 {chartW + 10} {chartH}" class="w-full" style="max-height: 340px; min-width: 600px; overflow: visible;">
+      <svg viewBox="0 0 {chartW} {chartH}" class="w-full" style="max-height: 340px; min-width: 600px;">
         <!-- Grid lines & Y-axis labels -->
         {#each Array.from({length: gridCount + 1}, (_, i) => i) as gi}
           {@const yVal = chartMin + (yRange * gi / gridCount)}

@@ -362,9 +362,9 @@
                   <td class="leo-td" style="text-align: left;">{r.user_email}</td>
                   <td class="leo-td" style="text-align: left;">{r.user_name || '-'}</td>
                   <td class="leo-td" style="text-align: left;">
-                    <span class="inline-block px-2 py-0.5 rounded text-xs font-medium"
-                      style="background: {r.role === 'admin' ? '#eff6ff; color: #1e40af;' : r.role === 'director' ? '#fef3c7; color: #92400e;' : '#f3f4f6; color: #374151;'}">
-                      {r.role}
+                    <span class="inline-block px-3 py-1 rounded text-xs font-semibold text-white"
+                      style="background: #1e3a5f;">
+                      {r.role.charAt(0).toUpperCase() + r.role.slice(1)}
                     </span>
                   </td>
                   <td class="leo-td" style="text-align: center;">

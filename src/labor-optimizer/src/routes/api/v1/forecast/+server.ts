@@ -59,6 +59,35 @@ export const GET: RequestHandler = async ({ url }) => {
       });
     }
 
+    // Fetch actual revenue for the period
+    const { data: actualData } = await sb
+      .from('daily_actuals')
+      .select('business_date, revenue, prior_year_revenue')
+      .eq('location_id', locationId)
+      .gte('business_date', resolvedStart)
+      .lte('business_date', resolvedEnd);
+
+    const actualMap = new Map<string, { revenue: number | null; pyRevenue: number | null }>();
+    for (const row of actualData || []) {
+      actualMap.set(row.business_date, {
+        revenue: row.revenue ?? null,
+        pyRevenue: row.prior_year_revenue ?? null,
+      });
+    }
+
+    // Fetch budget revenue for the period
+    const { data: budgetData } = await sb
+      .from('daily_budget')
+      .select('business_date, budget_revenue')
+      .eq('location_id', locationId)
+      .gte('business_date', resolvedStart)
+      .lte('business_date', resolvedEnd);
+
+    const budgetMap = new Map<string, number>();
+    for (const row of budgetData || []) {
+      budgetMap.set(row.business_date, row.budget_revenue ?? 0);
+    }
+
     const enriched = suggestions.map((s: any) => ({
       ...s,
       locked: lockMap.get(s.date)?.locked ?? false,
@@ -66,6 +95,10 @@ export const GET: RequestHandler = async ({ url }) => {
       lockedBy: lockMap.get(s.date)?.locked_by ?? null,
       overridden: lockMap.get(s.date)?.is_override ?? false,
       overrideTags: lockMap.get(s.date)?.override_tags ?? [],
+      actualRevenue: actualMap.get(s.date)?.revenue ?? null,
+      samePeriodPY: actualMap.get(s.date)?.pyRevenue ?? null,
+      trailing2wAvg: s.components?.trailingDowAvg ?? null,
+      budgetRevenue: budgetMap.get(s.date) ?? s.components?.budgetRevenue ?? null,
     }));
 
     // Include model accuracy stats

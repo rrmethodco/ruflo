@@ -96,7 +96,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       {/if}
     </button>
-    <a href="/dashboard" class="text-white font-bold text-sm tracking-wide">Method Co</a>
+    <a href="/dashboard" class="text-white font-bold text-sm tracking-wide">HELIXO</a>
     <span class="w-10"></span>
   </div>
 
@@ -161,7 +161,7 @@
     <!-- Desktop Icon Rail -->
     <div class="hidden md:flex flex-col items-center py-4 gap-1 flex-shrink-0" style="width: 56px; background: #0e0e0e;">
       <a href="/dashboard" class="flex items-center justify-center w-10 h-10 rounded-lg mb-4" style="background: rgba(255,255,255,0.08);">
-        <span class="text-white font-bold text-sm">M</span>
+        <span class="text-white font-bold text-sm">H</span>
       </a>
 
       <button onclick={() => sidebarExpanded = !sidebarExpanded}
@@ -195,7 +195,7 @@
     {#if sidebarExpanded}
       <div class="hidden md:flex flex-col flex-shrink-0 py-4 overflow-y-auto" style="width: 180px; background: #1a1a1a;">
         <div class="flex items-center justify-between px-4 mb-4">
-          <span class="text-white font-bold text-base tracking-wide">Method Co</span>
+          <span class="text-white font-bold text-base tracking-wide">HELIXO</span>
           <button onclick={() => sidebarExpanded = false} class="text-xs cursor-pointer" style="color: rgba(255,255,255,0.4);">
             &#8249;
           </button>

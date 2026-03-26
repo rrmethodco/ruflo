@@ -2,8 +2,8 @@
  * Schedule Approval API
  *
  * GET:   Fetch weekly schedule status with projected vs scheduled comparison
- * POST:  Submit schedule for approval
- * PUT:   Approve / deny / request revision (admin only)
+ * POST:  Submit schedule for approval (+ email admins)
+ * PUT:   Approve / deny / request revision (admin only) (+ email submitter)
  * PATCH: Upsert scheduled labor for a position + day (manual entry)
  */
 
@@ -12,6 +12,139 @@ import type { RequestHandler } from './$types';
 import { getSupabase, FOH_POSITIONS, BOH_POSITIONS } from '$lib/server/supabase';
 
 const ADMIN_EMAILS = ['rr@methodco.com'];
+const RESEND_API_URL = 'https://api.resend.com/emails';
+const HELIXO_FROM = 'HELIXO <onboarding@resend.dev>';
+
+/* ------------------------------------------------------------------ */
+/*  Email helpers                                                      */
+/* ------------------------------------------------------------------ */
+
+function fmt$(n: number): string {
+  return '$' + Math.round(n).toLocaleString('en-US');
+}
+
+function formatWeekDate(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function helixoEmailWrapper(innerHtml: string): string {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin:0;padding:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
+  <div style="max-width:600px;margin:0 auto;background:white;">
+    <div style="background:#1e3a5f;padding:24px 32px;">
+      <h1 style="color:white;margin:0;font-size:22px;font-weight:700;letter-spacing:0.5px;">HELIXO</h1>
+    </div>
+    <div style="padding:32px;">
+      ${innerHtml}
+    </div>
+    <div style="border-top:1px solid #e5e7eb;padding:16px 32px;text-align:center;">
+      <p style="color:#9ca3af;font-size:11px;margin:0;">HELIXO &mdash; Performance Dashboard</p>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
+function buildSubmittedEmailHtml(
+  locationName: string,
+  weekLabel: string,
+  fohProjected: number,
+  fohScheduled: number,
+  bohProjected: number,
+  bohScheduled: number,
+  totalProjected: number,
+  totalScheduled: number,
+): string {
+  const row = (label: string, proj: number, sched: number) => {
+    const variance = sched - proj;
+    const pct = proj > 0 ? ((variance / proj) * 100).toFixed(1) : '0.0';
+    const color = variance > 0 ? '#dc2626' : variance < 0 ? '#16a34a' : '#374151';
+    return `<tr>
+      <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;color:#374151;font-size:14px;">${label}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;color:#374151;font-size:14px;text-align:right;">${fmt$(proj)}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;color:#374151;font-size:14px;text-align:right;">${fmt$(sched)}</td>
+      <td style="padding:8px 12px;border-bottom:1px solid #f3f4f6;font-size:14px;text-align:right;color:${color};font-weight:600;">${variance >= 0 ? '+' : ''}${fmt$(variance)} (${pct}%)</td>
+    </tr>`;
+  };
+
+  return helixoEmailWrapper(`
+    <h2 style="color:#1e3a5f;margin:0 0 4px;font-size:18px;">Schedule Submitted for Review</h2>
+    <p style="color:#6b7280;margin:0 0 24px;font-size:14px;">${locationName} &mdash; Week of ${weekLabel}</p>
+
+    <table style="width:100%;border-collapse:collapse;margin-bottom:24px;">
+      <thead>
+        <tr style="background:#f8f9fa;">
+          <th style="padding:8px 12px;text-align:left;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Category</th>
+          <th style="padding:8px 12px;text-align:right;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Projected</th>
+          <th style="padding:8px 12px;text-align:right;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Scheduled</th>
+          <th style="padding:8px 12px;text-align:right;font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:0.5px;">Variance</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${row('FOH', fohProjected, fohScheduled)}
+        ${row('BOH', bohProjected, bohScheduled)}
+        ${row('Total', totalProjected, totalScheduled)}
+      </tbody>
+    </table>
+
+    <div style="text-align:center;margin-bottom:16px;">
+      <a href="https://helixoapp.com/dashboard/schedule-approval" style="display:inline-block;background:#1e3a5f;color:white;padding:12px 32px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:600;">Review Now</a>
+    </div>
+    <p style="color:#9ca3af;font-size:12px;text-align:center;margin:0;">Click the button above to review and approve or deny this schedule.</p>
+  `);
+}
+
+function buildDecisionEmailHtml(
+  locationName: string,
+  weekLabel: string,
+  status: string,
+  reviewNotes: string | null,
+): string {
+  const isApproved = status === 'approved';
+  const statusLabel = status.charAt(0).toUpperCase() + status.slice(1);
+  const statusColor = isApproved ? '#16a34a' : '#dc2626';
+  const statusBg = isApproved ? '#f0fdf4' : '#fef2f2';
+
+  return helixoEmailWrapper(`
+    <h2 style="color:#1e3a5f;margin:0 0 4px;font-size:18px;">Schedule ${statusLabel}</h2>
+    <p style="color:#6b7280;margin:0 0 24px;font-size:14px;">${locationName} &mdash; Week of ${weekLabel}</p>
+
+    <div style="background:${statusBg};border-left:4px solid ${statusColor};padding:16px 20px;border-radius:0 6px 6px 0;margin-bottom:24px;">
+      <p style="color:${statusColor};font-size:16px;font-weight:700;margin:0 0 4px;">${statusLabel}</p>
+      ${reviewNotes ? `<p style="color:#374151;font-size:14px;margin:0;">${reviewNotes}</p>` : '<p style="color:#6b7280;font-size:13px;margin:0;">No additional notes.</p>'}
+    </div>
+
+    <div style="text-align:center;margin-bottom:16px;">
+      <a href="https://helixoapp.com/schedule" style="display:inline-block;background:#1e3a5f;color:white;padding:12px 32px;border-radius:6px;text-decoration:none;font-size:14px;font-weight:600;">View Schedule</a>
+    </div>
+  `);
+}
+
+async function sendEmail(to: string[], subject: string, html: string): Promise<void> {
+  const resendApiKey = process.env.RESEND_API_KEY;
+  if (!resendApiKey) {
+    console.warn('RESEND_API_KEY not set — skipping email notification');
+    return;
+  }
+  try {
+    await fetch(RESEND_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${resendApiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ from: HELIXO_FROM, to, subject, html }),
+    });
+  } catch (err) {
+    console.error('Failed to send schedule email:', err);
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /*  GET — weekly schedule with projected vs scheduled by position/day */
@@ -149,6 +282,35 @@ export const POST: RequestHandler = async ({ request }) => {
 
   const now = new Date().toISOString();
 
+  // Compute FOH / BOH breakdowns for the email
+  const { data: targetsByPos } = await sb
+    .from('daily_labor_targets')
+    .select('position, projected_labor_dollars')
+    .eq('location_id', locationId)
+    .gte('business_date', weekStartDate)
+    .lte('business_date', weekEndDate);
+
+  const { data: schedByPos } = await sb
+    .from('scheduled_labor')
+    .select('position, scheduled_dollars')
+    .eq('location_id', locationId)
+    .gte('business_date', weekStartDate)
+    .lte('business_date', weekEndDate);
+
+  const fohSet = new Set(FOH_POSITIONS as string[]);
+  let fohProjected = 0, fohScheduled = 0, bohProjected = 0, bohScheduled = 0;
+  for (const t of targetsByPos || []) {
+    if (fohSet.has(t.position)) fohProjected += t.projected_labor_dollars || 0;
+    else bohProjected += t.projected_labor_dollars || 0;
+  }
+  for (const s of schedByPos || []) {
+    if (fohSet.has(s.position)) fohScheduled += s.scheduled_dollars || 0;
+    else bohScheduled += s.scheduled_dollars || 0;
+  }
+
+  // Resolve submitter email to store in the record
+  const submitterEmail = submittedBy || 'manager';
+
   // Upsert the weekly_schedules row
   const { data, error } = await sb
     .from('weekly_schedules')
@@ -157,7 +319,7 @@ export const POST: RequestHandler = async ({ request }) => {
         location_id: locationId,
         week_start_date: weekStartDate,
         status: 'submitted',
-        submitted_by: submittedBy || 'manager',
+        submitted_by: submitterEmail,
         submitted_at: now,
         reviewed_by: null,
         reviewed_at: null,
@@ -175,6 +337,37 @@ export const POST: RequestHandler = async ({ request }) => {
 
   if (error) {
     return json({ error: `Failed to submit: ${error.message}` }, { status: 500 });
+  }
+
+  // Send notification email to admins/directors
+  const { data: location } = await sb
+    .from('locations')
+    .select('name')
+    .eq('id', locationId)
+    .maybeSingle();
+
+  const locationName = location?.name || locationId;
+  const weekLabel = formatWeekDate(weekStartDate);
+
+  const { data: adminUsers } = await sb
+    .from('location_users')
+    .select('user_email')
+    .eq('location_id', locationId)
+    .or('role.eq.admin,role.eq.director');
+
+  const adminEmails = (adminUsers || []).map(u => u.user_email).filter(Boolean);
+  // Always include hardcoded admin as fallback
+  if (!adminEmails.includes('rr@methodco.com')) adminEmails.push('rr@methodco.com');
+
+  if (adminEmails.length > 0) {
+    const subject = `HELIXO | Schedule Submitted \u2014 ${locationName} \u2014 Week of ${weekLabel}`;
+    const html = buildSubmittedEmailHtml(
+      locationName, weekLabel,
+      fohProjected, fohScheduled,
+      bohProjected, bohScheduled,
+      totalProjected, totalScheduled,
+    );
+    await sendEmail(adminEmails, subject, html);
   }
 
   return json({ submitted: true, schedule: data });
@@ -208,10 +401,20 @@ export const PUT: RequestHandler = async ({ request }) => {
 
   const now = new Date().toISOString();
 
+  // Fetch the current schedule to get submitter email
+  const { data: existing } = await sb
+    .from('weekly_schedules')
+    .select('submitted_by')
+    .eq('location_id', locationId)
+    .eq('week_start_date', weekStartDate)
+    .maybeSingle();
+
+  const newStatus = statusMap[action];
+
   const { data, error } = await sb
     .from('weekly_schedules')
     .update({
-      status: statusMap[action],
+      status: newStatus,
       reviewed_by: reviewedBy,
       reviewed_at: now,
       review_notes: reviewNotes || null,
@@ -224,6 +427,23 @@ export const PUT: RequestHandler = async ({ request }) => {
 
   if (error) {
     return json({ error: `Failed to update: ${error.message}` }, { status: 500 });
+  }
+
+  // Send decision email to the submitter
+  const submitterEmail = existing?.submitted_by;
+  if (submitterEmail && submitterEmail.includes('@')) {
+    const { data: location } = await sb
+      .from('locations')
+      .select('name')
+      .eq('id', locationId)
+      .maybeSingle();
+
+    const locationName = location?.name || locationId;
+    const weekLabel = formatWeekDate(weekStartDate);
+    const statusLabel = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
+    const subject = `HELIXO | Schedule ${statusLabel} \u2014 ${locationName} \u2014 Week of ${weekLabel}`;
+    const html = buildDecisionEmailHtml(locationName, weekLabel, newStatus, reviewNotes || null);
+    await sendEmail([submitterEmail], subject, html);
   }
 
   return json({ updated: true, schedule: data });

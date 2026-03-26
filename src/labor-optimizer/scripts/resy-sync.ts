@@ -161,54 +161,26 @@ async function loginToResy(page: Page): Promise<void> {
   await page.goto(RESY_LOGIN_URL, { waitUntil: 'networkidle', timeout: 30000 });
   await page.waitForTimeout(2000);
 
-  // Check if we're already logged in (redirected to venues or Home)
+  // Check if we're already logged in — must be on a venue page, NOT the login page
   const currentUrl = page.url();
-  if (currentUrl.includes('/portal/')) {
+  if (currentUrl.includes('/portal/') && !currentUrl.includes('/login')) {
     console.log('[Resy] Already logged in');
     return;
   }
 
-  // Look for email/username input
+  // Resy OS login: single form with Email Address + Password + Log In button
   console.log('[Resy] Entering credentials...');
 
-  // Resy OS may use a two-step login (email, then password on next screen)
-  // or a single form. Handle both.
-  // IMPORTANT: filter out hidden inputs — Resy has hidden form fields
-  const emailInput = page.locator(
-    'input[type="email"]:visible, input[name="email"]:visible, input[name="username"]:visible, ' +
-    'input[placeholder*="email" i]:visible, input[placeholder*="Email" i]:visible, ' +
-    'input[type="text"]:visible'
-  ).first();
+  const emailInput = page.locator('input[placeholder="Email Address"]').first();
   await emailInput.waitFor({ state: 'visible', timeout: 20000 });
   await emailInput.fill(username);
 
-  // Check if password field is visible on same page
-  let passwordInput = page.locator('input[type="password"]').first();
-  let pwVisible = await passwordInput.isVisible().catch(() => false);
-
-  if (!pwVisible) {
-    // Two-step: click continue/next to reveal password
-    console.log('[Resy] Two-step login detected, clicking continue...');
-    const continueBtn = page.locator(
-      'button[type="submit"], button:has-text("Continue"), button:has-text("Next"), ' +
-      'button:has-text("Sign In"), button:has-text("Log In"), input[type="submit"]'
-    ).first();
-    await continueBtn.click();
-    await page.waitForTimeout(3000);
-
-    // Now look for password input again
-    passwordInput = page.locator('input[type="password"]').first();
-    await passwordInput.waitFor({ state: 'visible', timeout: 15000 });
-  }
-
+  const passwordInput = page.locator('input[placeholder="Password"]').first();
+  await passwordInput.waitFor({ state: 'visible', timeout: 5000 });
   await passwordInput.fill(password);
 
-  // Click sign in button
-  const signInButton = page.locator(
-    'button[type="submit"], button:has-text("Sign In"), button:has-text("Log In"), ' +
-    'button:has-text("Continue"), input[type="submit"]'
-  ).first();
-  await signInButton.click();
+  const loginBtn = page.locator('button:has-text("Log In")').first();
+  await loginBtn.click();
 
   // Wait for navigation after login
   console.log('[Resy] Waiting for post-login navigation...');

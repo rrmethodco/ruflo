@@ -497,16 +497,14 @@ export class ToastClient {
 
 /**
  * Normalize a Toast menu group name into one of our standard categories:
- * Food, Cocktails, Liquor, Wine, Beer, Non-Alcoholic, Other
+ * Food, Liquor (incl. cocktails), Wine, Beer, Non-Alcoholic, Other
  */
 function normalizeMenuGroupCategory(groupName: string): string {
 	const lower = groupName.toLowerCase();
 	// Food — broad match for meal items, plates, courses, shareables, snacks, etc.
 	if (/food|entree|appetizer|dessert|salad|soup|sandwich|burger|pizza|pasta|brunch|lunch|dinner|side|plate|main|starter|course|tapas|shareable|snack|oyster|seafood|steak|chicken|fish|meat|vegetable|cheese|charcuterie|bread|fries|taco|sushi|ramen|noodle|rice|egg|breakfast|grill|roast|raw bar|bites|small plate|large plate|kids|children/i.test(lower)) return 'Food';
-	// Cocktails
-	if (/cocktail|martini|margarita|spritz|negroni|old fashioned|manhattan|daiquiri|mojito|mixed drink|highball|sour/i.test(lower)) return 'Cocktails';
-	// Liquor / Spirits
-	if (/liquor|spirit|whiskey|bourbon|scotch|tequila|mezcal|vodka|gin|rum|brandy|cognac|amaro|cordial|digestif|aperitif|shot/i.test(lower)) return 'Liquor';
+	// Liquor (includes cocktails and spirits)
+	if (/cocktail|martini|margarita|spritz|negroni|old fashioned|manhattan|daiquiri|mojito|mixed drink|highball|sour|liquor|spirit|whiskey|bourbon|scotch|tequila|mezcal|vodka|gin|rum|brandy|cognac|amaro|cordial|digestif|aperitif|shot/i.test(lower)) return 'Liquor';
 	// Wine
 	if (/wine|btg|btb|champagne|prosecco|ros[eé]|sparkling|pinot|cabernet|merlot|chardonnay|sauvignon|riesling|malbec|by the glass|by the bottle/i.test(lower)) return 'Wine';
 	// Beer
@@ -526,8 +524,7 @@ function classifySalesCategory(raw: string): string {
 	const l = (raw || '').toLowerCase();
 	if (!l || l === 'undefined') return 'Food';
 	if (/food|entree|appetizer|dessert|salad|soup|sandwich|burger|pizza|pasta|brunch|lunch|dinner|side|plate|main|starter|course|tapas|shareable|snack|oyster|seafood|steak|chicken|fish|meat|vegetable|cheese|charcuterie|bread|fries|taco|sushi|ramen|noodle|rice|egg|breakfast|grill|roast|raw bar|bites|small plate|large plate|kids|children|tart|pie|cake|mousse|creme|sorbet|butterscotch|hand pie/.test(l)) return 'Food';
-	if (/cocktail|martini|margarita|spritz|negroni|old fashioned|manhattan|daiquiri|mojito|mixed drink|highball|sour/.test(l)) return 'Cocktails';
-	if (/liquor|spirit|whiskey|bourbon|scotch|tequila|mezcal|vodka|gin|rum|brandy|cognac|amaro|cordial|digestif|aperitif|shot|titos|woodford|bulleit|hendrick|makers mark|jack daniel|jameson|patron|grey goose|ketel one|tanqueray|bombay/.test(l)) return 'Liquor';
+	if (/cocktail|martini|margarita|spritz|negroni|old fashioned|manhattan|daiquiri|mojito|mixed drink|highball|sour|liquor|spirit|whiskey|bourbon|scotch|tequila|mezcal|vodka|gin|rum|brandy|cognac|amaro|cordial|digestif|aperitif|shot|titos|woodford|bulleit|hendrick|makers mark|jack daniel|jameson|patron|grey goose|ketel one|tanqueray|bombay/.test(l)) return 'Liquor';
 	if (/beer|draft|ale|lager|ipa|cider|stout|pilsner|porter|wheat|seltzer|hard seltzer|brew/.test(l)) return 'Beer';
 	if (/wine|champagne|prosecco|ros[eé]|sparkling|pinot|cabernet|merlot|chardonnay|sauvignon|riesling|malbec|by the glass|by the bottle|hermitage|btl|domaine|chateau|reserve|cuvee|brut|blanc|rouge|nero|barolo|chianti|gattinara|cain|lopez|tondonia|roumier|peters|jobard|servin|bereche|cantina|fay/.test(l)) return 'Wine';
 	if (/non.?alc|soft drink|soda|juice|coffee|tea|water|n\/a|mocktail|espresso|latte|cappuccino|lemonade|kombucha|virgin|zero.?proof/.test(l)) return 'Non-Alcoholic';

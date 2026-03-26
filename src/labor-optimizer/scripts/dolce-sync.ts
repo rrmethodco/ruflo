@@ -69,6 +69,12 @@ function formatDateMMDDYYYY(dateStr: string): string {
   return `${m}/${d}/${y}`;
 }
 
+function formatDateDolce(dateStr: string): string {
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const [y, m, d] = dateStr.split('-');
+  return `${months[parseInt(m) - 1]} ${parseInt(d)}, ${y}`;
+}
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -113,11 +119,13 @@ async function loginToDolce(page: Page): Promise<void> {
   // Fill credentials using placeholder text matching
   console.log('[Dolce] Entering credentials...');
   await page.waitForSelector('input[placeholder*="Username"]', { timeout: 15000 });
-  await page.fill('input[placeholder*="Username"]', username);
-  await page.fill('input[placeholder*="Password"]', password);
 
-  // Click sign in
-  await page.click('button:has-text("Sign In")');
+  // Type credentials using keyboard (more reliable than fill for some forms)
+  await page.click('input[placeholder*="Username"]');
+  await page.keyboard.type(username, { delay: 30 });
+  await page.keyboard.press('Tab');
+  await page.keyboard.type(password, { delay: 30 });
+  await page.keyboard.press('Enter');
   await page.waitForTimeout(3000);
   console.log('[Dolce] Logged in successfully');
 }
@@ -151,35 +159,77 @@ async function navigateToReport(page: Page, monday: string, sunday: string): Pro
     }
   }
 
-  // Select report type: Role Analytics
+  // Wait for page to fully load
+  await page.waitForTimeout(3000);
+  console.log('[Dolce] Reports URL:', page.url());
+
+  // Select report type: Role Analytics — find all <select> elements and pick the right one
   console.log('[Dolce] Selecting Role Analytics report...');
-  const reportSelect = page.locator('select[name="report_type"], select[name="report"], #report_type, #reportType').first();
-  await reportSelect.selectOption(REPORT_TYPE_VALUE);
+  const allSelects = page.locator('select');
+  const selectCount = await allSelects.count();
+  console.log(`[Dolce] Found ${selectCount} select elements`);
+
+  // The report type dropdown is typically the first large select on the reports page
+  for (let i = 0; i < selectCount; i++) {
+    const sel = allSelects.nth(i);
+    const optionCount = await sel.locator('option').count();
+    if (optionCount > 10) {
+      // This is likely the report type dropdown
+      try {
+        await sel.selectOption({ value: REPORT_TYPE_VALUE });
+        console.log(`[Dolce] Selected report type from select #${i} (${optionCount} options)`);
+        break;
+      } catch { continue; }
+    }
+  }
   await page.waitForTimeout(1000);
 
   // Select location: Lowland & The Quinte
   console.log('[Dolce] Selecting Lowland location...');
-  const locationSelect = page.locator('select[name="location"], select[name="location_id"], #location, #locationId').first();
-  await locationSelect.selectOption(LOCATION_FILTER_VALUE);
+  for (let i = 0; i < selectCount; i++) {
+    const sel = allSelects.nth(i);
+    try {
+      const options = await sel.locator('option').allTextContents();
+      if (options.some(o => o.includes('Lowland'))) {
+        await sel.selectOption({ value: LOCATION_FILTER_VALUE });
+        console.log(`[Dolce] Selected Lowland from select #${i}`);
+        break;
+      }
+    } catch { continue; }
+  }
   await page.waitForTimeout(500);
 
   // Set date range
-  const fromDate = formatDateMMDDYYYY(monday);
-  const toDate = formatDateMMDDYYYY(sunday);
+  const fromDate = formatDateDolce(monday);
+  const toDate = formatDateDolce(sunday);
   console.log(`[Dolce] Setting date range: ${fromDate} - ${toDate}`);
 
-  const fromInput = page.locator('input[name="from_date"], input[name="start_date"], #from_date, #startDate').first();
-  const toInput = page.locator('input[name="to_date"], input[name="end_date"], #to_date, #endDate').first();
-
-  await fromInput.fill('');
-  await fromInput.fill(fromDate);
-  await toInput.fill('');
-  await toInput.fill(toDate);
+  // Find date inputs — they're text inputs with date-like values (e.g., "Feb 1, 2026")
+  const dateInputs = page.locator('input[type="text"]');
+  const dateCount = await dateInputs.count();
+  let fromFound = false;
+  for (let i = 0; i < dateCount; i++) {
+    const input = dateInputs.nth(i);
+    const val = await input.inputValue().catch(() => '');
+    // Look for date-like values (contains month names or date patterns)
+    if (/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2}\/\d{1,2}/i.test(val)) {
+      if (!fromFound) {
+        await input.click({ clickCount: 3 });
+        await input.fill(fromDate);
+        console.log(`[Dolce] Set from-date input #${i} (was: "${val}") to ${fromDate}`);
+        fromFound = true;
+      } else {
+        await input.click({ clickCount: 3 });
+        await input.fill(toDate);
+        console.log(`[Dolce] Set to-date input #${i} (was: "${val}") to ${toDate}`);
+        break;
+      }
+    }
+  }
 
   // Click Show Report
   console.log('[Dolce] Clicking Show Report...');
-  const showButton = page.locator('input[value="Show Report"], button:has-text("Show Report"), input[type="submit"][value*="Show"], #showReport').first();
-  await showButton.click();
+  await page.click('button:has-text("Show Report"), input[value="Show Report"]');
 
   // Wait for the report to render
   console.log('[Dolce] Waiting for report to render...');
@@ -197,140 +247,97 @@ async function navigateToReport(page: Page, monday: string, sunday: string): Pro
 async function parseReportHTML(page: Page): Promise<ParsedRole[]> {
   console.log('[Dolce] Parsing report HTML...');
 
-  const roles = await page.evaluate(() => {
-    const results: Array<{
-      roleName: string;
-      scheduledDollars: number;
-      scheduledHours: number;
-      actualDollars: number;
-      actualHours: number;
-      section: string;
-    }> = [];
+  // Get page HTML and parse in Node (avoids TypeScript compilation issues in browser context)
+  const html = await page.content();
+  return parseHTMLInNode(html);
+}
 
-    // Helper to parse dollar amounts like "$2,530.44"
-    function parseDollar(text: string): number {
-      if (!text) return 0;
-      const cleaned = text.replace(/[$,\s]/g, '');
-      const val = parseFloat(cleaned);
-      return isNaN(val) ? 0 : val;
-    }
+function parseHTMLInNode(html: string): ParsedRole[] {
+  // Simple regex-based parser since we can't use DOM APIs in Node without a library
+  const results: ParsedRole[] = [];
 
-    // Helper to parse hours like "1,188.00"
-    function parseHours(text: string): number {
-      if (!text) return 0;
-      const cleaned = text.replace(/[,\s]/g, '');
-      const val = parseFloat(cleaned);
-      return isNaN(val) ? 0 : val;
-    }
+  // Find sections
+  const sections = ['FOH', 'BOH', 'MGT', 'Contract'];
+  const sectionRegex = /Lowland\s+(FOH|BOH|MGT)|Contract\s+Labor/gi;
 
-    // Get all text content to identify sections
-    const bodyText = document.body.innerText;
+  // Find all table rows with role data
+  // Pattern: role name in first cell, dollar amounts in subsequent cells
+  const rowRegex = /<tr[^>]*>\s*<td[^>]*>([^<]+)<\/td>\s*<td[^>]*>\s*\$?([\d,.]+)\s*<\/td>\s*<td[^>]*>\s*([\d.]+%?)\s*<\/td>\s*<td[^>]*>\s*\$?([\d,.]+)\s*<\/td>/gi;
 
-    // Identify sections: Lowland FOH, Lowland BOH, Lowland MGT, Contract Labor
-    const sectionMap: Record<string, string> = {};
-    const sectionPatterns = [
-      { pattern: /Lowland FOH/i, section: 'FOH' },
-      { pattern: /Lowland BOH/i, section: 'BOH' },
-      { pattern: /Lowland MGT/i, section: 'MGT' },
-      { pattern: /Contract Labor/i, section: 'Contract' },
-    ];
+  let currentSection = 'FOH';
+  const lines = html.split('\n');
 
-    // Find all tables in the page
-    const tables = document.querySelectorAll('table');
-
-    for (const table of tables) {
-      // Determine which section this table belongs to
-      // Look at preceding text/headers
-      let section = 'Unknown';
-      let prevEl: Element | null = table;
-
-      // Walk backwards to find section header
-      for (let attempts = 0; attempts < 10; attempts++) {
-        prevEl = prevEl?.previousElementSibling || prevEl?.parentElement || null;
-        if (!prevEl) break;
-        const text = prevEl.textContent || '';
-        for (const sp of sectionPatterns) {
-          if (sp.pattern.test(text)) {
-            section = sp.section;
-            break;
-          }
-        }
-        if (section !== 'Unknown') break;
-      }
-
-      // Also check the table's parent chain
-      if (section === 'Unknown') {
-        let parent: Element | null = table.parentElement;
-        while (parent) {
-          const text = parent.textContent || '';
-          for (const sp of sectionPatterns) {
-            if (sp.pattern.test(text)) {
-              section = sp.section;
-              break;
-            }
-          }
-          if (section !== 'Unknown') break;
-          parent = parent.parentElement;
-        }
-      }
-
-      // Parse table rows
-      const rows = table.querySelectorAll('tr');
-      let currentRole: string | null = null;
-
-      for (const row of rows) {
-        const cells = row.querySelectorAll('td, th');
-        if (cells.length < 2) continue;
-
-        const firstCell = cells[0]?.textContent?.trim() || '';
-        const isHeader = firstCell.toLowerCase().includes('role') ||
-                         firstCell.toLowerCase().includes('sched') ||
-                         !firstCell;
-
-        if (isHeader) continue;
-
-        // Check if this is a "Hours" sub-row
-        if (firstCell.toLowerCase() === 'hours') {
-          // This row has hours data for the current role
-          if (currentRole) {
-            const existing = results.find(r => r.roleName === currentRole && r.section === section);
-            if (existing) {
-              // cells: "Hours" | scheduledHours | blank | actualHours
-              existing.scheduledHours = parseHours(cells[1]?.textContent || '0');
-              if (cells.length >= 4) {
-                existing.actualHours = parseHours(cells[3]?.textContent || '0');
-              }
-            }
-          }
-          continue;
-        }
-
-        // This is a role row: Role | Sched $ | Lbr% | Act $ | Lbr%
-        currentRole = firstCell;
-        const scheduledDollars = parseDollar(cells[1]?.textContent || '0');
-        const actualDollars = cells.length >= 4 ? parseDollar(cells[3]?.textContent || '0') : 0;
-
-        results.push({
-          roleName: currentRole,
-          scheduledDollars,
-          scheduledHours: 0, // filled in by Hours sub-row
-          actualDollars,
-          actualHours: 0,
-          section,
-        });
-      }
-    }
-
-    return results;
-  });
-
-  console.log(`[Dolce] Parsed ${roles.length} roles from report`);
-  for (const r of roles) {
-    console.log(`  [${r.section}] ${r.roleName}: sched=$${r.scheduledDollars.toFixed(2)}, hours=${r.scheduledHours.toFixed(1)}`);
+  for (const line of lines) {
+    // Track section
+    if (/Lowland FOH/i.test(line)) currentSection = 'FOH';
+    else if (/Lowland BOH/i.test(line)) currentSection = 'BOH';
+    else if (/Lowland MGT/i.test(line)) currentSection = 'MGT';
+    else if (/Contract Labor/i.test(line)) currentSection = 'Contract';
   }
 
-  return roles;
+  // Use a more robust approach: find role-like rows
+  const roleRowRegex = /<td[^>]*>\s*([A-Za-z][A-Za-z\s']+)\s*<\/td>\s*<td[^>]*>\s*\$?([\d,]+\.?\d*)\s*<\/td>/g;
+  let currentSect = 'FOH';
+  let match;
+
+  // Split by section headers
+  const fohStart = html.indexOf('Lowland FOH');
+  const bohStart = html.indexOf('Lowland BOH');
+  const mgtStart = html.indexOf('Lowland MGT');
+  const contractStart = html.indexOf('Contract Labor');
+
+  function parseSectionHTML(sectionHTML: string, section: string) {
+    // Find rows: RoleName | $Sched | Lbr% | $Act | Lbr%
+    const trs = sectionHTML.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
+    for (const tr of trs) {
+      const cells = tr.match(/<td[^>]*>([\s\S]*?)<\/td>/gi) || [];
+      if (cells.length >= 4) {
+        const cellTexts = cells.map(c => c.replace(/<[^>]+>/g, '').trim());
+        const roleName = cellTexts[0];
+        // Skip header rows and "Hours" rows
+        if (!roleName || /^(Role|Hours|Total|Status)$/i.test(roleName)) continue;
+        if (/hours/i.test(roleName)) continue;
+
+        const parseDollar = (t: string) => {
+          const cleaned = t.replace(/[$,\s]/g, '');
+          const val = parseFloat(cleaned);
+          return isNaN(val) ? 0 : val;
+        };
+
+        const sched = parseDollar(cellTexts[1]);
+        const act = parseDollar(cellTexts[3]);
+
+        if (roleName.length > 1 && roleName.length < 50) {
+          results.push({
+            roleName,
+            scheduledDollars: sched,
+            scheduledHours: 0,
+            actualDollars: act,
+            actualHours: 0,
+            section,
+          });
+        }
+      }
+    }
+  }
+
+  if (fohStart >= 0) {
+    const fohEnd = bohStart > fohStart ? bohStart : (mgtStart > fohStart ? mgtStart : html.length);
+    parseSectionHTML(html.substring(fohStart, fohEnd), 'FOH');
+  }
+  if (bohStart >= 0) {
+    const bohEnd = mgtStart > bohStart ? mgtStart : (contractStart > bohStart ? contractStart : html.length);
+    parseSectionHTML(html.substring(bohStart, bohEnd), 'BOH');
+  }
+  if (mgtStart >= 0) {
+    const mgtEnd = contractStart > mgtStart ? contractStart : html.length;
+    parseSectionHTML(html.substring(mgtStart, mgtEnd), 'MGT');
+  }
+
+  console.log(`[Dolce] Parsed ${results.length} roles from report HTML`);
+  return results;
 }
+
 
 // ---------------------------------------------------------------------------
 // Supabase: Fetch mappings + DOW weights, upsert scheduled_labor

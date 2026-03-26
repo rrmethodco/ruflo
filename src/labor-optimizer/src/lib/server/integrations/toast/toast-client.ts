@@ -238,11 +238,16 @@ export class ToastClient {
 					for (const sel of check.selections) {
 						const itemName = sel.displayName || sel.item?.name || 'Unknown Item';
 						const itemGuid = sel.item?.guid || sel.itemGuid || null;
-						// Prefer menu group name from menus API, fall back to salesCategory
+						// Prefer menu group name from menus API, fall back to salesCategory, then item name
 						const menuGroup = itemGuid ? menuCategoryMap.get(itemGuid) : undefined;
-						const category = menuGroup
+						let category = menuGroup
 							? normalizeMenuGroupCategory(menuGroup)
 							: classifySalesCategory(sel.salesCategory?.name || sel.salesCategory?.guid || '');
+						// If still Food (default) but item name suggests wine/liquor, reclassify
+						if (category === 'Food') {
+							const itemCheck = classifySalesCategory(itemName);
+							if (itemCheck !== 'Food') category = itemCheck;
+						}
 						const qty = sel.quantity || 1;
 						const selRevenue = (sel.price || 0) * qty;
 
@@ -508,22 +513,27 @@ function normalizeMenuGroupCategory(groupName: string): string {
 	if (/beer|draft|ale|lager|ipa|cider|stout|pilsner|porter|wheat|seltzer|hard seltzer|brew/i.test(lower)) return 'Beer';
 	// Non-Alcoholic
 	if (/\bna\b|non.?alc|soft drink|soda|juice|coffee|tea|water|mocktail|espresso|latte|cappuccino|hot choc|lemonade|kombucha|virgin|zero.?proof|still|sparkling water|arnold palmer/i.test(lower)) return 'Non-Alcoholic';
-	// Merchandise / Retail (gift cards, merch, etc.) — keep separate from Food
-	if (/merch|retail|gift.?card|swag|merchandise|to.?go|takeout|delivery fee|service charge|gratuity|tip/i.test(lower)) return 'Other';
-	return 'Other';
+	// Merchandise / Retail (gift cards, merch, etc.) — keep as Other
+	if (/merch|retail|gift.?card|swag|merchandise|delivery fee|service charge|gratuity|tip/i.test(lower)) return 'Other';
+	// Event/banquet revenue — classify as Food (F&B minimum, prix fixe, event pricing)
+	if (/event|prix.?fixe|tasting|banquet|minimum|supplement|package|per.?person/i.test(lower)) return 'Food';
+	// Default: assume Food for restaurants (most unrecognized menu groups are food items)
+	return 'Food';
 }
 
 /** Fallback: classify from salesCategory name when menu lookup misses. */
 function classifySalesCategory(raw: string): string {
 	const l = (raw || '').toLowerCase();
-	if (!l || l === 'undefined') return 'Other';
-	if (/food|entree|appetizer|dessert|salad|soup|sandwich|burger|pizza|pasta|brunch|lunch|dinner|side|plate|main|starter|course|tapas|shareable|snack|oyster|seafood|steak|chicken|fish|meat|vegetable|cheese|charcuterie|bread|fries|taco|sushi|ramen|noodle|rice|egg|breakfast|grill|roast|raw bar|bites|small plate|large plate|kids|children/.test(l)) return 'Food';
+	if (!l || l === 'undefined') return 'Food';
+	if (/food|entree|appetizer|dessert|salad|soup|sandwich|burger|pizza|pasta|brunch|lunch|dinner|side|plate|main|starter|course|tapas|shareable|snack|oyster|seafood|steak|chicken|fish|meat|vegetable|cheese|charcuterie|bread|fries|taco|sushi|ramen|noodle|rice|egg|breakfast|grill|roast|raw bar|bites|small plate|large plate|kids|children|tart|pie|cake|mousse|creme|sorbet|butterscotch|hand pie/.test(l)) return 'Food';
 	if (/cocktail|martini|margarita|spritz|negroni|old fashioned|manhattan|daiquiri|mojito|mixed drink|highball|sour/.test(l)) return 'Cocktails';
-	if (/liquor|spirit|whiskey|bourbon|scotch|tequila|mezcal|vodka|gin|rum|brandy|cognac|amaro|cordial|digestif|aperitif|shot/.test(l)) return 'Liquor';
+	if (/liquor|spirit|whiskey|bourbon|scotch|tequila|mezcal|vodka|gin|rum|brandy|cognac|amaro|cordial|digestif|aperitif|shot|titos|woodford|bulleit|hendrick|makers mark|jack daniel|jameson|patron|grey goose|ketel one|tanqueray|bombay/.test(l)) return 'Liquor';
 	if (/beer|draft|ale|lager|ipa|cider|stout|pilsner|porter|wheat|seltzer|hard seltzer|brew/.test(l)) return 'Beer';
-	if (/wine|champagne|prosecco|ros[eé]|sparkling|pinot|cabernet|merlot|chardonnay|sauvignon|riesling|malbec|by the glass|by the bottle/.test(l)) return 'Wine';
+	if (/wine|champagne|prosecco|ros[eé]|sparkling|pinot|cabernet|merlot|chardonnay|sauvignon|riesling|malbec|by the glass|by the bottle|hermitage|btl|domaine|chateau|reserve|cuvee|brut|blanc|rouge|nero|barolo|chianti|gattinara|cain|lopez|tondonia|roumier|peters|jobard|servin|bereche|cantina|fay/.test(l)) return 'Wine';
 	if (/non.?alc|soft drink|soda|juice|coffee|tea|water|n\/a|mocktail|espresso|latte|cappuccino|lemonade|kombucha|virgin|zero.?proof/.test(l)) return 'Non-Alcoholic';
-	return 'Other';
+	if (/gift.?card|merch|service charge|gratuity/.test(l)) return 'Other';
+	if (/event|prix.?fixe|minimum|supplement|per.?person/.test(l)) return 'Food';
+	return 'Food';
 }
 
 /** Create Toast client from environment variables */

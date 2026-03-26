@@ -196,6 +196,10 @@ async function loginToResy(page: Page): Promise<void> {
   }
 
   console.log('[Resy] Login successful');
+  console.log('[Resy] Post-login URL:', page.url());
+  // Debug: dump page text after login to see venue list
+  const postLoginText = await page.evaluate('document.body.innerText') as string;
+  console.log('[Resy] Post-login page text (first 500 chars):', postLoginText.substring(0, 500));
 }
 
 // ---------------------------------------------------------------------------

@@ -110,7 +110,7 @@ export const GET: RequestHandler = async ({ request }) => {
 
       // Send via Resend
       const emailPayload = {
-        from: process.env.RESEND_FROM_EMAIL || 'Method Co KPI <onboarding@resend.dev>',
+        from: process.env.RESEND_FROM_EMAIL || 'HELIXO <onboarding@resend.dev>',
         to: toAddresses,
         subject,
         html: htmlBody,
@@ -175,11 +175,11 @@ function buildEmailHtml(
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 </head>
-<body style="margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
+<body style="margin:0;padding:0;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f5f5f5;">
   <div style="max-width:600px;margin:0 auto;background:white;">
     <!-- Header -->
     <div style="background:#1e3a5f;padding:24px 32px;">
-      <h1 style="color:white;margin:0;font-size:20px;font-weight:600;">Method Co</h1>
+      <h1 style="color:white;margin:0;font-size:22px;font-weight:700;letter-spacing:0.5px;">HELIXO</h1>
       <p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:13px;">Daily KPI Insights Report</p>
     </div>
 
@@ -206,7 +206,7 @@ function buildEmailHtml(
     <!-- Footer -->
     <div style="border-top:1px solid #e5e7eb;padding:16px 32px;text-align:center;">
       <p style="color:#9ca3af;font-size:11px;margin:0;">
-        Method Co KPI Dashboard &mdash; Automated daily insights
+        HELIXO &mdash; Performance Dashboard
       </p>
     </div>
   </div>

@@ -297,67 +297,35 @@ async function scrapeUpcomingCovers(page: Page): Promise<UpcomingCover[]> {
   }
 
   // Scroll down to ensure "Upcoming Covers" section is visible
-  await page.evaluate(() => window.scrollBy(0, 500));
+  await page.evaluate('window.scrollBy(0, 500)');
   await page.waitForTimeout(1000);
 
-  const covers = await page.evaluate(() => {
-    const results: Array<{ dateText: string; covers: number }> = [];
+  // Extract innerText in Node.js to avoid esbuild __name issue in page.evaluate
+  const homeText = await page.evaluate('document.body.innerText');
 
-    // Strategy 1: Look for "Upcoming Covers" section header, then parse sibling items
-    const allText = document.body.innerText;
-    const upcomingIdx = allText.indexOf('Upcoming Covers');
+  const covers: Array<{ dateText: string; covers: number }> = [];
+  const upcomingIdx = homeText.indexOf('Upcoming Covers');
+  if (upcomingIdx >= 0) {
+    const afterText = homeText.substring(upcomingIdx + 'Upcoming Covers'.length, upcomingIdx + 2000);
+    const lines = afterText.split('\n').map((l: string) => l.trim()).filter(Boolean);
 
-    if (upcomingIdx >= 0) {
-      // Extract text after "Upcoming Covers" up to the next major section
-      const afterText = allText.substring(upcomingIdx + 'Upcoming Covers'.length, upcomingIdx + 2000);
-      const lines = afterText.split('\n').map(l => l.trim()).filter(Boolean);
-
-      // Pattern: "Thu Mar 26" followed by a number like "136"
-      // or "Thu Mar 26: 136" on one line
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i];
-
-        // Try combined format: "Thu Mar 26: 136" or "Thu Mar 26 136"
-        const combinedMatch = line.match(/^((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+\w{3}\s+\d{1,2})[:\s]+(\d+)/i);
-        if (combinedMatch) {
-          results.push({ dateText: combinedMatch[1], covers: parseInt(combinedMatch[2], 10) });
-          continue;
-        }
-
-        // Try date on one line, number on next
-        const dateMatch = line.match(/^((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+\w{3}\s+\d{1,2})$/i);
-        if (dateMatch && i + 1 < lines.length) {
-          const nextLine = lines[i + 1];
-          const numMatch = nextLine.match(/^(\d+)$/);
-          if (numMatch) {
-            results.push({ dateText: dateMatch[1], covers: parseInt(numMatch[1], 10) });
-            i++; // skip the number line
-          }
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const combinedMatch = line.match(/^((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+\w{3}\s+\d{1,2})[:\s]+(\d+)/i);
+      if (combinedMatch) {
+        covers.push({ dateText: combinedMatch[1], covers: parseInt(combinedMatch[2], 10) });
+        continue;
+      }
+      const dateMatch = line.match(/^((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+\w{3}\s+\d{1,2})$/i);
+      if (dateMatch && i + 1 < lines.length) {
+        const numMatch = lines[i + 1].match(/^(\d+)$/);
+        if (numMatch) {
+          covers.push({ dateText: dateMatch[1], covers: parseInt(numMatch[1], 10) });
+          i++;
         }
       }
     }
-
-    // Strategy 2: DOM-based — look for elements containing upcoming cover data
-    if (results.length === 0) {
-      // Try finding a list/table with date + number pairs
-      const containers = document.querySelectorAll(
-        '[class*="upcoming"], [class*="cover"], [class*="forecast"], [data-testid*="upcoming"]'
-      );
-
-      for (const container of containers) {
-        const items = container.querySelectorAll('li, tr, [class*="item"], [class*="row"]');
-        for (const item of items) {
-          const text = item.textContent?.trim() || '';
-          const match = text.match(/((?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+\w{3}\s+\d{1,2})[:\s]*(\d+)/i);
-          if (match) {
-            results.push({ dateText: match[1], covers: parseInt(match[2], 10) });
-          }
-        }
-      }
-    }
-
-    return results;
-  });
+  }
 
   const parsed: UpcomingCover[] = [];
   for (const c of covers) {
@@ -388,27 +356,23 @@ async function scrapeHomeSummary(page: Page): Promise<HomeSummary | null> {
     await page.waitForTimeout(3000);
   }
 
-  const summary = await page.evaluate(() => {
-    const text = document.body.innerText;
+  // Extract text in Node.js to avoid esbuild __name issue
+  const summaryText = await page.evaluate('document.body.innerText') as string;
 
-    function extractNumber(label: string): number {
-      // Look for patterns like "Covers booked\n136" or "Covers booked: 136"
-      const pattern = new RegExp(label + '[:\\s]*(\\d+)', 'i');
-      const match = text.match(pattern);
-      return match ? parseInt(match[1], 10) : 0;
-    }
+  function extractNum(text: string, label: string): number {
+    const pattern = new RegExp(label + '[:\\s]*(\\d+)', 'i');
+    const match = text.match(pattern);
+    return match ? parseInt(match[1], 10) : 0;
+  }
 
-    const coversBooked = extractNumber('Covers booked') || extractNumber('Covers');
-    const firstTimeGuests = extractNumber('First.time guests') || extractNumber('First time');
-    const returningGuests = extractNumber('Returning guests') || extractNumber('Returning');
-    const vips = extractNumber('VIPs') || extractNumber('VIP');
+  const coversBooked = extractNum(summaryText, 'Covers booked') || extractNum(summaryText, 'Covers');
+  const firstTimeGuests = extractNum(summaryText, 'First.time guests') || extractNum(summaryText, 'First time');
+  const returningGuests = extractNum(summaryText, 'Returning guests') || extractNum(summaryText, 'Returning');
+  const vips = extractNum(summaryText, 'VIPs') || extractNum(summaryText, 'VIP');
 
-    if (coversBooked === 0 && firstTimeGuests === 0 && returningGuests === 0 && vips === 0) {
-      return null;
-    }
-
-    return { coversBooked, firstTimeGuests, returningGuests, vips };
-  });
+  const summary = (coversBooked === 0 && firstTimeGuests === 0 && returningGuests === 0 && vips === 0)
+    ? null
+    : { coversBooked, firstTimeGuests, returningGuests, vips };
 
   if (summary) {
     console.log(`[Resy] Today summary: ${summary.coversBooked} covers booked, ` +
@@ -477,12 +441,14 @@ async function scrapeDailyCovers(page: Page, targetMonth?: string): Promise<Dail
 
   console.log('[Resy] Parsing daily covers table...');
 
-  const rows = await page.evaluate((targetMonthStr: string | undefined) => {
-    const results: Array<{
-      dateText: string;
-      dayOfWeek: string;
-      service: string;
-      totalCovers: number;
+  // Extract page text in Node.js to avoid esbuild __name issue in page.evaluate
+  const coversPageText = await page.evaluate('document.body.innerText') as string;
+
+  const rows: Array<{
+    dateText: string;
+    dayOfWeek: string;
+    service: string;
+    totalCovers: number;
       coversVsPrevWeek: number | null;
       reservedCovers: number;
       walkinCovers: number;
@@ -492,99 +458,37 @@ async function scrapeDailyCovers(page: Page, targetMonth?: string): Promise<Dail
       noShowResRate: number | null;
     }> = [];
 
-    function parseNum(text: string): number {
-      if (!text) return 0;
-      const cleaned = text.replace(/[,\s%$]/g, '');
-      const val = parseFloat(cleaned);
-      return isNaN(val) ? 0 : val;
-    }
+  function parseNum(text: string): number {
+    if (!text) return 0;
+    const cleaned = text.replace(/[,\s%$]/g, '');
+    const val = parseFloat(cleaned);
+    return isNaN(val) ? 0 : val;
+  }
 
-    // Find the covers table — look for tables with expected column headers
-    const tables = document.querySelectorAll('table');
-
-    for (const table of tables) {
-      const headerRow = table.querySelector('thead tr, tr:first-child');
-      if (!headerRow) continue;
-
-      const headerCells = headerRow.querySelectorAll('th, td');
-      const headers = Array.from(headerCells).map(c => c.textContent?.trim().toLowerCase() || '');
-
-      // Check if this looks like the covers table
-      const hasDate = headers.some(h => h.includes('date'));
-      const hasCovers = headers.some(h => h.includes('cover') || h.includes('total'));
-      if (!hasDate && !hasCovers) continue;
-
-      // Map column indices
-      const dateIdx = headers.findIndex(h => h.includes('date'));
-      const dayIdx = headers.findIndex(h => h.includes('day'));
-      const serviceIdx = headers.findIndex(h => h.includes('service'));
-      const totalIdx = headers.findIndex(h => h.includes('total cover'));
-      const vsPrevIdx = headers.findIndex(h => h.includes('prev week') || h.includes('vs prev'));
-      const reservedIdx = headers.findIndex(h => h.includes('reserved'));
-      const walkinIdx = headers.findIndex(h => h.includes('walk'));
-      const waitlistIdx = headers.findIndex(h => h.includes('waitlist'));
-      const noShowCovIdx = headers.findIndex(h => h.includes('no show cover') || h.includes('no show c'));
-      const noShowPartIdx = headers.findIndex(h =>
-        (h.includes('no show') && h.includes('part')) || h.includes('no show p'));
-      const noShowRateIdx = headers.findIndex(h => h.includes('no show') && h.includes('rate'));
-
-      // Parse data rows
-      const dataRows = table.querySelectorAll('tbody tr, tr:not(:first-child)');
-      for (const row of dataRows) {
-        const cells = row.querySelectorAll('td');
-        if (cells.length < 3) continue;
-
-        const dateText = cells[dateIdx >= 0 ? dateIdx : 0]?.textContent?.trim() || '';
-        if (!dateText || dateText.toLowerCase().includes('total')) continue;
-
-        results.push({
+  // Text-based parsing of cover data (Node.js side)
+  const coversLines = coversPageText.split('\n').map((l: string) => l.trim()).filter(Boolean);
+  for (const line of coversLines) {
+    const parts = line.split(/\t+/);
+    if (parts.length >= 5) {
+      const dateText = parts[0];
+      if (/\w{3}\s+\d{1,2}/.test(dateText) || /\d{1,2}\/\d{1,2}/.test(dateText)) {
+        if (dateText.toLowerCase().includes('total')) continue;
+        rows.push({
           dateText,
-          dayOfWeek: dayIdx >= 0 ? (cells[dayIdx]?.textContent?.trim() || '') : '',
-          service: serviceIdx >= 0 ? (cells[serviceIdx]?.textContent?.trim() || 'Dinner') : 'Dinner',
-          totalCovers: parseNum(cells[totalIdx >= 0 ? totalIdx : 3]?.textContent || '0'),
-          coversVsPrevWeek: vsPrevIdx >= 0 ? parseNum(cells[vsPrevIdx]?.textContent || '0') : null,
-          reservedCovers: parseNum(cells[reservedIdx >= 0 ? reservedIdx : 5]?.textContent || '0'),
-          walkinCovers: parseNum(cells[walkinIdx >= 0 ? walkinIdx : 6]?.textContent || '0'),
-          waitlistCovers: parseNum(cells[waitlistIdx >= 0 ? waitlistIdx : 7]?.textContent || '0'),
-          noShowCovers: parseNum(cells[noShowCovIdx >= 0 ? noShowCovIdx : 8]?.textContent || '0'),
-          noShowParties: parseNum(cells[noShowPartIdx >= 0 ? noShowPartIdx : 8]?.textContent || '0'),
-          noShowResRate: noShowRateIdx >= 0 ? parseNum(cells[noShowRateIdx]?.textContent || '0') : null,
+          dayOfWeek: parts[1] || '',
+          service: parts[2] || 'Dinner',
+          totalCovers: parseNum(parts[3] || '0'),
+          coversVsPrevWeek: parts[4] ? parseNum(parts[4]) : null,
+          reservedCovers: parseNum(parts[5] || '0'),
+          walkinCovers: parseNum(parts[6] || '0'),
+          waitlistCovers: parseNum(parts[7] || '0'),
+          noShowCovers: parseNum(parts[8] || '0'),
+          noShowParties: parseNum(parts[8] || '0'),
+          noShowResRate: parts[9] ? parseNum(parts[9]) : null,
         });
       }
     }
-
-    // If table parsing failed, try text-based parsing
-    if (results.length === 0) {
-      const allText = document.body.innerText;
-      const lines = allText.split('\n').map(l => l.trim()).filter(Boolean);
-
-      for (const line of lines) {
-        // Match lines like "Mar 1\tSat\tDinner\t145\t..." or similar
-        const parts = line.split(/\t+/);
-        if (parts.length >= 5) {
-          const dateText = parts[0];
-          // Rough check: does it look like a date?
-          if (/\w{3}\s+\d{1,2}/.test(dateText) || /\d{1,2}\/\d{1,2}/.test(dateText)) {
-            results.push({
-              dateText,
-              dayOfWeek: parts[1] || '',
-              service: parts[2] || 'Dinner',
-              totalCovers: parseNum(parts[3] || '0'),
-              coversVsPrevWeek: parts[4] ? parseNum(parts[4]) : null,
-              reservedCovers: parseNum(parts[5] || '0'),
-              walkinCovers: parseNum(parts[6] || '0'),
-              waitlistCovers: parseNum(parts[7] || '0'),
-              noShowCovers: parseNum(parts[8] || '0'),
-              noShowParties: parseNum(parts[8] || '0'),
-              noShowResRate: parts[9] ? parseNum(parts[9]) : null,
-            });
-          }
-        }
-      }
-    }
-
-    return results;
-  }, targetMonth);
+  }
 
   // Convert date texts to YYYY-MM-DD
   const month = targetMonth || getCurrentMonthStr();

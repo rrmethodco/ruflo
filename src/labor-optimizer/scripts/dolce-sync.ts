@@ -1,9 +1,10 @@
 /**
  * Dolce TeamWork Schedule Sync Script
  *
- * Scrapes the Role Analytics report from Dolce Clock for Lowland,
- * maps roles to dashboard positions, distributes weekly totals
- * to daily using DOW weights, and upserts into scheduled_labor.
+ * Scrapes the Schedules page from Dolce Clock for Lowland,
+ * parses individual employee shifts and the Daily Analytics Summary,
+ * maps Dolce roles to dashboard positions, and upserts daily
+ * per-position scheduled labor into scheduled_labor.
  *
  * Env vars required:
  *   DOLCE_USERNAME, DOLCE_PASSWORD
@@ -21,10 +22,11 @@ import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 // Config
 // ---------------------------------------------------------------------------
 
-const DOLCE_LOGIN_URL = 'https://www.dolceclock.com/public/login.php?company_id=3243';
+const DOLCE_LOGIN_URL =
+  'https://www.dolceclock.com/public/login.php?company_id=3243';
+const DOLCE_SCHEDULES_URL =
+  'https://www.dolceclock.com/public/?_company_id=3243';
 const LOWLAND_LOCATION_ID = 'f36fdb18-a97b-48af-8456-7374dea4b0f9';
-const REPORT_TYPE_VALUE = '32|0|0|0|0|1'; // Role Analytics
-const LOCATION_FILTER_VALUE = '6140';       // Lowland & The Quinte
 
 // ---------------------------------------------------------------------------
 // Supabase
@@ -43,8 +45,14 @@ function getSupabase(): SupabaseClient {
 // Date helpers
 // ---------------------------------------------------------------------------
 
-function getWeekBounds(referenceDate?: string): { monday: string; sunday: string; weekDates: string[] } {
-  const target = referenceDate ? new Date(referenceDate + 'T12:00:00') : new Date();
+function getWeekBounds(referenceDate?: string): {
+  monday: string;
+  sunday: string;
+  weekDates: string[];
+} {
+  const target = referenceDate
+    ? new Date(referenceDate + 'T12:00:00')
+    : new Date();
   const dow = target.getDay();
   const mondayOffset = dow === 0 ? -6 : 1 - dow;
   const monday = new Date(target);
@@ -64,43 +72,513 @@ function getWeekBounds(referenceDate?: string): { monday: string; sunday: string
   };
 }
 
-function formatDateMMDDYYYY(dateStr: string): string {
-  const [y, m, d] = dateStr.split('-');
-  return `${m}/${d}/${y}`;
-}
-
-function formatDateDolce(dateStr: string): string {
-  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const [y, m, d] = dateStr.split('-');
-  return `${months[parseInt(m) - 1]} ${parseInt(d)}, ${y}`;
-}
-
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface ParsedRole {
-  roleName: string;
-  scheduledDollars: number;
-  scheduledHours: number;
-  actualDollars: number;
-  actualHours: number;
-  section: string; // FOH, BOH, MGT, Contract
-}
 
 interface DolceMapping {
   dolce_role_name: string;
   dashboard_position: string;
 }
 
-interface DowWeight {
-  position: string;
-  day_of_week: number;
-  weight: number;
+/** Per-day totals from the Daily Analytics Summary */
+interface DailyAnalytics {
+  date: string; // YYYY-MM-DD
+  schedHours: number;
+  schedHrlyDollars: number;
+  schedSalaryDollars: number;
+}
+
+/** A single employee shift parsed from the schedule grid */
+interface ParsedShift {
+  employeeName: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // e.g. "5:00pm"
+  endTime: string; // e.g. "11:00pm"
+  hours: number;
+  dolceRole: string; // e.g. "Lowland server"
+}
+
+/** Aggregated hours per role per day */
+interface RoleDayHours {
+  date: string;
+  dolceRole: string;
+  totalHours: number;
 }
 
 // ---------------------------------------------------------------------------
-// Playwright: Login + Navigate + Scrape
+// Time parsing
+// ---------------------------------------------------------------------------
+
+function parseTimeToMinutes(timeStr: string): number {
+  const match = timeStr
+    .trim()
+    .toLowerCase()
+    .match(/^(\d{1,2}):(\d{2})\s*(am|pm)$/);
+  if (!match) return -1;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const ampm = match[3];
+
+  if (ampm === 'am' && hours === 12) hours = 0;
+  if (ampm === 'pm' && hours !== 12) hours += 12;
+
+  return hours * 60 + minutes;
+}
+
+function calcShiftHours(startStr: string, endStr: string): number {
+  const startMin = parseTimeToMinutes(startStr);
+  const endMin = parseTimeToMinutes(endStr);
+  if (startMin < 0 || endMin < 0) return 0;
+
+  let diff = endMin - startMin;
+  if (diff < 0) diff += 24 * 60; // overnight shift
+  return Math.round((diff / 60) * 100) / 100;
+}
+
+// ---------------------------------------------------------------------------
+// Page text parsing: Daily Analytics Summary
+// ---------------------------------------------------------------------------
+
+/**
+ * Parses the Daily Analytics Summary from the page text.
+ *
+ * Expected text patterns:
+ *   Daily Analytics Summary
+ *   Location - Lowland
+ *   Mar 23, 2026
+ *   ...
+ *   Hours  170.5  153.5
+ *   $ Hrly  $2,268  $2,286
+ *   Salary  $350  $350
+ *   ...
+ *   Mar 24, 2026
+ *   ...
+ */
+function parseDailyAnalytics(
+  text: string,
+  weekDates: string[],
+): DailyAnalytics[] {
+  const results: DailyAnalytics[] = [];
+
+  // Extract the Daily Analytics Summary section
+  const summaryStart = text.indexOf('Daily Analytics Summary');
+  if (summaryStart < 0) {
+    console.warn('[Parse] Daily Analytics Summary not found in page text');
+    return results;
+  }
+
+  // The summary ends before the schedule sections (e.g. "Lowland FOH" or "Weekly Analytics")
+  const summaryEndMarkers = ['Lowland FOH', 'Lowland BOH', 'Weekly Analytics'];
+  let summaryEnd = text.length;
+  for (const marker of summaryEndMarkers) {
+    const idx = text.indexOf(marker, summaryStart);
+    if (idx > summaryStart && idx < summaryEnd) {
+      summaryEnd = idx;
+    }
+  }
+
+  const summaryText = text.substring(summaryStart, summaryEnd);
+  const lines = summaryText.split('\n').map((l) => l.trim());
+
+  // Build a year reference from weekDates
+  const yearRef = weekDates[0].substring(0, 4);
+
+  // Months for parsing "Mar 23, 2026" or "Mar 23"
+  const monthMap: Record<string, string> = {
+    jan: '01', feb: '02', mar: '03', apr: '04',
+    may: '05', jun: '06', jul: '07', aug: '08',
+    sep: '09', oct: '10', nov: '11', dec: '12',
+  };
+
+  // Date header regex: "Mar 23, 2026" or "Mar 23"
+  const dateHeaderRegex =
+    /^(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)\s+(\d{1,2})(?:,?\s*(\d{4}))?$/i;
+
+  let currentDate: string | null = null;
+  let currentAnalytics: Partial<DailyAnalytics> = {};
+
+  for (const line of lines) {
+    // Check for date header
+    const dateMatch = line.match(dateHeaderRegex);
+    if (dateMatch) {
+      // Save previous day if we have one
+      if (currentDate && currentAnalytics.schedHours !== undefined) {
+        results.push({
+          date: currentDate,
+          schedHours: currentAnalytics.schedHours ?? 0,
+          schedHrlyDollars: currentAnalytics.schedHrlyDollars ?? 0,
+          schedSalaryDollars: currentAnalytics.schedSalaryDollars ?? 0,
+        });
+      }
+
+      const month = monthMap[dateMatch[1].toLowerCase()];
+      const day = dateMatch[2].padStart(2, '0');
+      const year = dateMatch[3] || yearRef;
+      currentDate = `${year}-${month}-${day}`;
+      currentAnalytics = {};
+      continue;
+    }
+
+    if (!currentDate) continue;
+
+    // Parse "Hours  170.5  153.5" -> first number is scheduled
+    const hoursMatch = line.match(
+      /^hours?\s+([\d,.]+)\s+([\d,.]+)/i,
+    );
+    if (hoursMatch) {
+      currentAnalytics.schedHours = parseFloat(
+        hoursMatch[1].replace(/,/g, ''),
+      );
+      continue;
+    }
+
+    // Parse "$ Hrly  $2,268  $2,286" -> first dollar amount is scheduled
+    const hrlyMatch = line.match(
+      /^\$?\s*hrly\s+\$?([\d,.]+)\s+\$?([\d,.]+)/i,
+    );
+    if (hrlyMatch) {
+      currentAnalytics.schedHrlyDollars = parseFloat(
+        hrlyMatch[1].replace(/,/g, ''),
+      );
+      continue;
+    }
+
+    // Parse "Salary  $350  $350"
+    const salaryMatch = line.match(
+      /^salary\s+\$?([\d,.]+)\s+\$?([\d,.]+)/i,
+    );
+    if (salaryMatch) {
+      currentAnalytics.schedSalaryDollars = parseFloat(
+        salaryMatch[1].replace(/,/g, ''),
+      );
+      continue;
+    }
+  }
+
+  // Don't forget the last day
+  if (currentDate && currentAnalytics.schedHours !== undefined) {
+    results.push({
+      date: currentDate,
+      schedHours: currentAnalytics.schedHours ?? 0,
+      schedHrlyDollars: currentAnalytics.schedHrlyDollars ?? 0,
+      schedSalaryDollars: currentAnalytics.schedSalaryDollars ?? 0,
+    });
+  }
+
+  return results;
+}
+
+// ---------------------------------------------------------------------------
+// Page text parsing: Individual Shifts
+// ---------------------------------------------------------------------------
+
+/**
+ * Parses individual shifts from the schedule grid text.
+ *
+ * Structure:
+ *   Lowland FOH
+ *   Published on Mar 20th by S Stresing
+ *
+ *   Bar-Nadav, Jay
+ *   Hrs: Shifts:
+ *   Tue  4:55pm - 9:49pm Lowland support
+ *   Wed  5:00pm - 11:00pm Lowland support
+ *   ...
+ *
+ *   Bizzozero, Jacob
+ *   ...
+ *
+ *   Lowland BOH
+ *   ...
+ */
+function parseShifts(
+  text: string,
+  weekDates: string[],
+): ParsedShift[] {
+  const shifts: ParsedShift[] = [];
+
+  // Build a day-of-week to date map for this week
+  const dayNames = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  const dayToDate = new Map<string, string>();
+  for (let i = 0; i < 7; i++) {
+    dayToDate.set(dayNames[i], weekDates[i]);
+  }
+
+  // Find schedule sections (Lowland FOH, Lowland BOH, etc.)
+  const sectionRegex = /^(Lowland\s+(?:FOH|BOH|MGT)|Contract\s+Labor)/im;
+
+  // Find the start of schedule data (after Daily Analytics)
+  const scheduleMarkers = ['Lowland FOH', 'Lowland BOH'];
+  let schedStart = text.length;
+  for (const marker of scheduleMarkers) {
+    const idx = text.indexOf(marker);
+    if (idx >= 0 && idx < schedStart) {
+      schedStart = idx;
+    }
+  }
+
+  if (schedStart >= text.length) {
+    console.warn('[Parse] No schedule sections found in page text');
+    return shifts;
+  }
+
+  const schedText = text.substring(schedStart);
+  const lines = schedText.split('\n').map((l) => l.trim());
+
+  // Dolce format can be EITHER:
+  // Format A: "Tue  4:55pm - 9:49pm Lowland support" (one line)
+  // Format B: "2:00pm - 10:45pm" (time line) then "Cook" (role on next line)
+  // We also need to track which day of the week we're in based on "Hrs: NN.NN Shifts: N" headers
+  const shiftLineRegexA =
+    /^(mon|tue|wed|thu|fri|sat|sun)\s+(\d{1,2}:\d{2}(?:am|pm))\s*-\s*(\d{1,2}:\d{2}(?:am|pm))\s+(.+)$/i;
+  const timeOnlyRegex =
+    /^(\d{1,2}:\d{2}(?:am|pm))\s*-\s*(\d{1,2}:\d{2}(?:am|pm))$/i;
+  // Known role names (from Dolce)
+  const knownRoles = new Set([
+    'cook', 'dishwasher', 'prep', 'lowland server', 'lowland bartender',
+    'lowland host', 'lowland support', 'lowland sidework', 'lead bar admin',
+    'maitre\'d', 'polisher', 'foh training', 'boh training', 'key holder',
+    'lowland server assistant server support', 'general manager',
+    'ghost bartender', 'contract dish',
+  ]);
+
+  const nameExclusions =
+    /^(lowland\s+(foh|boh|mgt)|contract\s+labor|published|hrs:|shifts:|daily|weekly|location|sched|act|hours|\$|salary|overtime|total|regular|filter|all|ready)/i;
+  const namePattern = /^[A-Z][a-z'-]+,\s+[A-Z]/;
+
+  let currentEmployee = 'Unknown';
+  let currentDay = 0; // index into weekDates, tracked by "Hrs:" blocks
+  let pendingTime: { start: string; end: string } | null = null;
+
+  // Track which day we're on by counting employee "Hrs:" headers per section
+  // The schedule shows Mon employees first, then Tue, etc.
+  // We detect day changes from explicit day headers or Hrs blocks
+  const dayHeaderRegex = /^(mon|tue|wed|thu|fri|sat|sun)(?:day)?$/i;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!line) continue;
+
+    // Check for day header
+    const dayHeaderMatch = line.match(dayHeaderRegex);
+    if (dayHeaderMatch) {
+      const dayIdx = dayNames.indexOf(dayHeaderMatch[1].toLowerCase().substring(0, 3));
+      if (dayIdx >= 0) currentDay = dayIdx;
+      continue;
+    }
+
+    // Check if this is an employee name line
+    if (namePattern.test(line) && !nameExclusions.test(line)) {
+      currentEmployee = line.split('\n')[0].trim();
+      const hrsIdx = currentEmployee.indexOf('Hrs:');
+      if (hrsIdx > 0) {
+        currentEmployee = currentEmployee.substring(0, hrsIdx).trim();
+      }
+      pendingTime = null;
+      continue;
+    }
+
+    // Format A: "Tue 4:55pm - 9:49pm Lowland support"
+    const shiftMatchA = line.match(shiftLineRegexA);
+    if (shiftMatchA) {
+      const dayAbbrev = shiftMatchA[1].toLowerCase();
+      const startTime = shiftMatchA[2].toLowerCase();
+      const endTime = shiftMatchA[3].toLowerCase();
+      const roleName = shiftMatchA[4].trim();
+
+      const date = dayToDate.get(dayAbbrev);
+      if (!date) continue;
+
+      const hours = calcShiftHours(startTime, endTime);
+
+      shifts.push({
+        employeeName: currentEmployee,
+        date,
+        startTime,
+        endTime,
+        hours,
+        dolceRole: roleName,
+      });
+      pendingTime = null;
+      continue;
+    }
+
+    // Format B: time-only line "2:00pm - 10:45pm"
+    const timeMatch = line.match(timeOnlyRegex);
+    if (timeMatch) {
+      pendingTime = {
+        start: timeMatch[1].toLowerCase(),
+        end: timeMatch[2].toLowerCase(),
+      };
+      continue;
+    }
+
+    // If previous line was a time, this line might be the role name
+    if (pendingTime) {
+      const normalizedLine = line.toLowerCase().trim();
+      if (knownRoles.has(normalizedLine) || normalizedLine.startsWith('lowland ')) {
+        const date = weekDates[currentDay] || weekDates[0];
+        const hours = calcShiftHours(pendingTime.start, pendingTime.end);
+
+        shifts.push({
+          employeeName: currentEmployee,
+          date,
+          startTime: pendingTime.start,
+          endTime: pendingTime.end,
+          hours,
+          dolceRole: line.trim(),
+        });
+        pendingTime = null;
+        continue;
+      }
+      // Not a role name — reset pending time
+      pendingTime = null;
+    }
+
+    // Track day from "Hrs: XX.XX Shifts: N" blocks — each employee has one per day
+    if (/^Hrs:\s*[\d.]+\s+Shifts:\s*\d+/i.test(line)) {
+      // This indicates the start of a new day's shifts for the current employee
+      // We'll detect the day from the lines around it
+    }
+  }
+
+  return shifts;
+}
+
+// ---------------------------------------------------------------------------
+// Aggregate shifts by date + role
+// ---------------------------------------------------------------------------
+
+function aggregateShiftsByDateRole(shifts: ParsedShift[]): RoleDayHours[] {
+  const agg = new Map<string, number>();
+
+  for (const shift of shifts) {
+    const key = `${shift.date}|${shift.dolceRole.toLowerCase()}`;
+    agg.set(key, (agg.get(key) ?? 0) + shift.hours);
+  }
+
+  const results: RoleDayHours[] = [];
+  for (const [key, totalHours] of agg) {
+    const [date, dolceRole] = key.split('|');
+    results.push({ date, dolceRole, totalHours });
+  }
+
+  return results;
+}
+
+// ---------------------------------------------------------------------------
+// Calculate per-position daily scheduled dollars
+// ---------------------------------------------------------------------------
+
+interface PositionDayRecord {
+  date: string;
+  position: string;
+  scheduledDollars: number;
+  scheduledHours: number;
+}
+
+function calculatePositionDayRecords(
+  roleDayHours: RoleDayHours[],
+  dailyAnalytics: DailyAnalytics[],
+  mappingLookup: Map<string, string>,
+): PositionDayRecord[] {
+  const records: PositionDayRecord[] = [];
+
+  // Build a per-date total hours from shifts (only mapped, non-excluded roles)
+  const dateTotalHours = new Map<string, number>();
+  const datePositionHours = new Map<string, Map<string, number>>();
+
+  for (const rdh of roleDayHours) {
+    const dashPos = findMapping(rdh.dolceRole, mappingLookup);
+    if (!dashPos || dashPos === 'EXCLUDE') continue;
+
+    dateTotalHours.set(
+      rdh.date,
+      (dateTotalHours.get(rdh.date) ?? 0) + rdh.totalHours,
+    );
+
+    if (!datePositionHours.has(rdh.date)) {
+      datePositionHours.set(rdh.date, new Map());
+    }
+    const posMap = datePositionHours.get(rdh.date)!;
+    posMap.set(dashPos, (posMap.get(dashPos) ?? 0) + rdh.totalHours);
+  }
+
+  // Build analytics lookup by date
+  const analyticsMap = new Map<string, DailyAnalytics>();
+  for (const da of dailyAnalytics) {
+    analyticsMap.set(da.date, da);
+  }
+
+  // For each date, distribute the daily $ Hrly proportionally across positions
+  for (const [date, posMap] of datePositionHours) {
+    const totalHrs = dateTotalHours.get(date) ?? 0;
+    const analytics = analyticsMap.get(date);
+    const dailyDollars = analytics?.schedHrlyDollars ?? 0;
+
+    for (const [position, posHours] of posMap) {
+      let dollars: number;
+      if (totalHrs > 0 && dailyDollars > 0) {
+        // Distribute daily $ Hrly proportionally by hours
+        dollars = Math.round((posHours / totalHrs) * dailyDollars * 100) / 100;
+      } else {
+        // Fallback: no analytics data, estimate at $15/hr average
+        dollars = Math.round(posHours * 15 * 100) / 100;
+      }
+
+      records.push({
+        date,
+        position,
+        scheduledDollars: dollars,
+        scheduledHours: Math.round(posHours * 100) / 100,
+      });
+    }
+  }
+
+  return records;
+}
+
+/**
+ * Find the dashboard position for a Dolce role name.
+ * Tries exact match first, then partial/contains matching.
+ */
+function findMapping(
+  dolceRole: string,
+  mappingLookup: Map<string, string>,
+): string | undefined {
+  const lower = dolceRole.toLowerCase().trim();
+
+  // Exact match
+  if (mappingLookup.has(lower)) {
+    return mappingLookup.get(lower);
+  }
+
+  // Try matching without "Lowland " prefix
+  const withoutPrefix = lower.replace(/^lowland\s+/, '');
+  if (mappingLookup.has(withoutPrefix)) {
+    return mappingLookup.get(withoutPrefix);
+  }
+
+  // Try matching with "Lowland " prefix added
+  const withPrefix = `lowland ${withoutPrefix}`;
+  if (mappingLookup.has(withPrefix)) {
+    return mappingLookup.get(withPrefix);
+  }
+
+  // Partial match: check if any mapping key is contained in the role
+  for (const [key, value] of mappingLookup) {
+    if (lower.includes(key) || key.includes(lower)) {
+      return value;
+    }
+  }
+
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Playwright: Login + Scrape Schedules Page
 // ---------------------------------------------------------------------------
 
 async function loginToDolce(page: Page): Promise<void> {
@@ -111,14 +589,19 @@ async function loginToDolce(page: Page): Promise<void> {
   }
 
   console.log('[Dolce] Navigating to login page...');
-  await page.goto(DOLCE_LOGIN_URL, { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.goto(DOLCE_LOGIN_URL, {
+    waitUntil: 'domcontentloaded',
+    timeout: 30000,
+  });
   await page.waitForTimeout(3000);
   console.log('[Dolce] Current URL:', page.url());
   console.log('[Dolce] Page title:', await page.title());
 
   // Fill credentials using placeholder text matching
   console.log('[Dolce] Entering credentials...');
-  await page.waitForSelector('input[placeholder*="Username"]', { timeout: 15000 });
+  await page.waitForSelector('input[placeholder*="Username"]', {
+    timeout: 15000,
+  });
 
   // Type credentials using keyboard (more reliable than fill for some forms)
   await page.click('input[placeholder*="Username"]');
@@ -130,220 +613,40 @@ async function loginToDolce(page: Page): Promise<void> {
   console.log('[Dolce] Logged in successfully');
 }
 
-async function navigateToReport(page: Page, monday: string, sunday: string): Promise<void> {
-  console.log('[Dolce] Navigating to Reports page...');
-
-  // Navigate to reports -- try common Dolce report paths
-  const reportPaths = [
-    'https://www.dolceclock.com/public/reports.php',
-    'https://www.dolceclock.com/public/index.php?page=reports',
-  ];
-
-  let navigated = false;
-  for (const url of reportPaths) {
-    try {
-      await page.goto(url, { waitUntil: 'networkidle', timeout: 15000 });
-      navigated = true;
-      break;
-    } catch {
-      continue;
-    }
-  }
-
-  if (!navigated) {
-    // Try clicking a Reports link in the nav
-    const reportsLink = page.locator('a:has-text("Reports"), a:has-text("reports")').first();
-    if (await reportsLink.isVisible()) {
-      await reportsLink.click();
-      await page.waitForTimeout(2000);
-    }
-  }
-
-  // Wait for page to fully load
+async function navigateToSchedules(page: Page): Promise<void> {
+  console.log('[Dolce] Navigating to Schedules page...');
+  await page.goto(DOLCE_SCHEDULES_URL, {
+    waitUntil: 'networkidle',
+    timeout: 30000,
+  });
   await page.waitForTimeout(3000);
-  console.log('[Dolce] Reports URL:', page.url());
+  console.log('[Dolce] Schedules URL:', page.url());
 
-  // Select report type: Role Analytics — find all <select> elements and pick the right one
-  console.log('[Dolce] Selecting Role Analytics report...');
-  const allSelects = page.locator('select');
-  const selectCount = await allSelects.count();
-  console.log(`[Dolce] Found ${selectCount} select elements`);
-
-  // The report type dropdown is typically the first large select on the reports page
-  for (let i = 0; i < selectCount; i++) {
-    const sel = allSelects.nth(i);
-    const optionCount = await sel.locator('option').count();
-    if (optionCount > 10) {
-      // This is likely the report type dropdown
-      try {
-        await sel.selectOption({ value: REPORT_TYPE_VALUE });
-        console.log(`[Dolce] Selected report type from select #${i} (${optionCount} options)`);
-        break;
-      } catch { continue; }
-    }
-  }
-  await page.waitForTimeout(1000);
-
-  // Select location: Lowland & The Quinte
-  console.log('[Dolce] Selecting Lowland location...');
-  for (let i = 0; i < selectCount; i++) {
-    const sel = allSelects.nth(i);
-    try {
-      const options = await sel.locator('option').allTextContents();
-      if (options.some(o => o.includes('Lowland'))) {
-        await sel.selectOption({ value: LOCATION_FILTER_VALUE });
-        console.log(`[Dolce] Selected Lowland from select #${i}`);
-        break;
-      }
-    } catch { continue; }
-  }
-  await page.waitForTimeout(500);
-
-  // Set date range
-  const fromDate = formatDateDolce(monday);
-  const toDate = formatDateDolce(sunday);
-  console.log(`[Dolce] Setting date range: ${fromDate} - ${toDate}`);
-
-  // Find date inputs — they're text inputs with date-like values (e.g., "Feb 1, 2026")
-  const dateInputs = page.locator('input[type="text"]');
-  const dateCount = await dateInputs.count();
-  let fromFound = false;
-  for (let i = 0; i < dateCount; i++) {
-    const input = dateInputs.nth(i);
-    const val = await input.inputValue().catch(() => '');
-    // Look for date-like values (contains month names or date patterns)
-    if (/jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d{1,2}\/\d{1,2}/i.test(val)) {
-      if (!fromFound) {
-        await input.click({ clickCount: 3 });
-        await input.fill(fromDate);
-        console.log(`[Dolce] Set from-date input #${i} (was: "${val}") to ${fromDate}`);
-        fromFound = true;
-      } else {
-        await input.click({ clickCount: 3 });
-        await input.fill(toDate);
-        console.log(`[Dolce] Set to-date input #${i} (was: "${val}") to ${toDate}`);
-        break;
-      }
-    }
-  }
-
-  // Click Show Report
-  console.log('[Dolce] Clicking Show Report...');
-  await page.click('button:has-text("Show Report"), input[value="Show Report"]');
-
-  // Wait for the report to render
-  console.log('[Dolce] Waiting for report to render...');
-  await page.waitForTimeout(5000);
-
-  // Wait for "Lowland" heading to appear in rendered content
+  // Wait for schedule content to appear
   try {
     await page.waitForSelector('text=Lowland', { timeout: 20000 });
-    console.log('[Dolce] Report loaded successfully');
+    console.log('[Dolce] Schedule page loaded');
   } catch {
-    console.warn('[Dolce] Warning: "Lowland" text not found in report, proceeding anyway');
+    console.warn(
+      '[Dolce] Warning: "Lowland" text not found on schedules page',
+    );
   }
 }
 
-async function parseReportHTML(page: Page): Promise<ParsedRole[]> {
-  console.log('[Dolce] Parsing report HTML...');
-
-  // Get page HTML and parse in Node (avoids TypeScript compilation issues in browser context)
-  const html = await page.content();
-  return parseHTMLInNode(html);
+async function getPageText(page: Page): Promise<string> {
+  console.log('[Dolce] Extracting page text...');
+  const text = await page.evaluate(() => document.body.innerText);
+  console.log(`[Dolce] Extracted ${text.length} characters of text`);
+  return text;
 }
-
-function parseHTMLInNode(html: string): ParsedRole[] {
-  // Simple regex-based parser since we can't use DOM APIs in Node without a library
-  const results: ParsedRole[] = [];
-
-  // Find sections
-  const sections = ['FOH', 'BOH', 'MGT', 'Contract'];
-  const sectionRegex = /Lowland\s+(FOH|BOH|MGT)|Contract\s+Labor/gi;
-
-  // Find all table rows with role data
-  // Pattern: role name in first cell, dollar amounts in subsequent cells
-  const rowRegex = /<tr[^>]*>\s*<td[^>]*>([^<]+)<\/td>\s*<td[^>]*>\s*\$?([\d,.]+)\s*<\/td>\s*<td[^>]*>\s*([\d.]+%?)\s*<\/td>\s*<td[^>]*>\s*\$?([\d,.]+)\s*<\/td>/gi;
-
-  let currentSection = 'FOH';
-  const lines = html.split('\n');
-
-  for (const line of lines) {
-    // Track section
-    if (/Lowland FOH/i.test(line)) currentSection = 'FOH';
-    else if (/Lowland BOH/i.test(line)) currentSection = 'BOH';
-    else if (/Lowland MGT/i.test(line)) currentSection = 'MGT';
-    else if (/Contract Labor/i.test(line)) currentSection = 'Contract';
-  }
-
-  // Use a more robust approach: find role-like rows
-  const roleRowRegex = /<td[^>]*>\s*([A-Za-z][A-Za-z\s']+)\s*<\/td>\s*<td[^>]*>\s*\$?([\d,]+\.?\d*)\s*<\/td>/g;
-  let currentSect = 'FOH';
-  let match;
-
-  // Split by section headers
-  const fohStart = html.indexOf('Lowland FOH');
-  const bohStart = html.indexOf('Lowland BOH');
-  const mgtStart = html.indexOf('Lowland MGT');
-  const contractStart = html.indexOf('Contract Labor');
-
-  function parseSectionHTML(sectionHTML: string, section: string) {
-    // Find rows: RoleName | $Sched | Lbr% | $Act | Lbr%
-    const trs = sectionHTML.match(/<tr[^>]*>[\s\S]*?<\/tr>/gi) || [];
-    for (const tr of trs) {
-      const cells = tr.match(/<td[^>]*>([\s\S]*?)<\/td>/gi) || [];
-      if (cells.length >= 4) {
-        const cellTexts = cells.map(c => c.replace(/<[^>]+>/g, '').trim());
-        const roleName = cellTexts[0];
-        // Skip header rows and "Hours" rows
-        if (!roleName || /^(Role|Hours|Total|Status)$/i.test(roleName)) continue;
-        if (/hours/i.test(roleName)) continue;
-
-        const parseDollar = (t: string) => {
-          const cleaned = t.replace(/[$,\s]/g, '');
-          const val = parseFloat(cleaned);
-          return isNaN(val) ? 0 : val;
-        };
-
-        const sched = parseDollar(cellTexts[1]);
-        const act = parseDollar(cellTexts[3]);
-
-        if (roleName.length > 1 && roleName.length < 50) {
-          results.push({
-            roleName,
-            scheduledDollars: sched,
-            scheduledHours: 0,
-            actualDollars: act,
-            actualHours: 0,
-            section,
-          });
-        }
-      }
-    }
-  }
-
-  if (fohStart >= 0) {
-    const fohEnd = bohStart > fohStart ? bohStart : (mgtStart > fohStart ? mgtStart : html.length);
-    parseSectionHTML(html.substring(fohStart, fohEnd), 'FOH');
-  }
-  if (bohStart >= 0) {
-    const bohEnd = mgtStart > bohStart ? mgtStart : (contractStart > bohStart ? contractStart : html.length);
-    parseSectionHTML(html.substring(bohStart, bohEnd), 'BOH');
-  }
-  if (mgtStart >= 0) {
-    const mgtEnd = contractStart > mgtStart ? contractStart : html.length;
-    parseSectionHTML(html.substring(mgtStart, mgtEnd), 'MGT');
-  }
-
-  console.log(`[Dolce] Parsed ${results.length} roles from report HTML`);
-  return results;
-}
-
 
 // ---------------------------------------------------------------------------
-// Supabase: Fetch mappings + DOW weights, upsert scheduled_labor
+// Supabase: Fetch mappings, upsert scheduled_labor
 // ---------------------------------------------------------------------------
 
-async function fetchDolceMappings(sb: SupabaseClient): Promise<DolceMapping[]> {
+async function fetchDolceMappings(
+  sb: SupabaseClient,
+): Promise<DolceMapping[]> {
   const { data, error } = await sb
     .from('dolce_job_mapping')
     .select('dolce_role_name, dashboard_position')
@@ -357,75 +660,31 @@ async function fetchDolceMappings(sb: SupabaseClient): Promise<DolceMapping[]> {
   return data || [];
 }
 
-async function fetchDowWeights(sb: SupabaseClient): Promise<DowWeight[]> {
-  const { data, error } = await sb
-    .from('dow_weights')
-    .select('position, day_of_week, weight')
-    .eq('location_id', LOWLAND_LOCATION_ID);
-
-  if (error) {
-    console.error('[Dolce] Error fetching DOW weights:', error.message);
-    return [];
-  }
-
-  return data || [];
-}
-
-function distributeWeeklyToDaily(
-  weeklyDollars: number,
-  weeklyHours: number,
-  position: string,
-  weekDates: string[],
-  dowWeights: DowWeight[],
-): Array<{ date: string; dollars: number; hours: number }> {
-  // Get weights for this position (day_of_week: 0=Sun, 1=Mon ... 6=Sat)
-  const posWeights = dowWeights.filter(w => w.position === position);
-
-  // weekDates[0] = Monday. Map index to JS day-of-week
-  const indexToDow = [1, 2, 3, 4, 5, 6, 0]; // Mon=1 .. Sun=0
-
-  const rawWeights: number[] = weekDates.map((_, i) => {
-    const dow = indexToDow[i];
-    const found = posWeights.find(w => w.day_of_week === dow);
-    return found?.weight ?? (1 / 7); // equal split if no weights
-  });
-
-  const totalWeight = rawWeights.reduce((s, w) => s + w, 0);
-  const normalizedWeights = totalWeight > 0
-    ? rawWeights.map(w => w / totalWeight)
-    : rawWeights.map(() => 1 / 7);
-
-  return weekDates.map((date, i) => ({
-    date,
-    dollars: Math.round(weeklyDollars * normalizedWeights[i] * 100) / 100,
-    hours: Math.round(weeklyHours * normalizedWeights[i] * 100) / 100,
-  }));
-}
-
 async function upsertScheduledLabor(
   sb: SupabaseClient,
-  records: Array<{ date: string; position: string; dollars: number; hours: number }>,
+  records: PositionDayRecord[],
 ): Promise<number> {
   let upserted = 0;
   for (const rec of records) {
-    if (rec.dollars === 0 && rec.hours === 0) continue;
+    if (rec.scheduledDollars === 0 && rec.scheduledHours === 0) continue;
 
-    const { error } = await sb
-      .from('scheduled_labor')
-      .upsert(
-        {
-          location_id: LOWLAND_LOCATION_ID,
-          business_date: rec.date,
-          position: rec.position,
-          scheduled_dollars: rec.dollars,
-          scheduled_hours: rec.hours,
-          source: 'dolce',
-        },
-        { onConflict: 'location_id,business_date,position' },
-      );
+    const { error } = await sb.from('scheduled_labor').upsert(
+      {
+        location_id: LOWLAND_LOCATION_ID,
+        business_date: rec.date,
+        position: rec.position,
+        scheduled_dollars: rec.scheduledDollars,
+        scheduled_hours: rec.scheduledHours,
+        source: 'dolce',
+      },
+      { onConflict: 'location_id,business_date,position' },
+    );
 
     if (error) {
-      console.error(`[Dolce] Upsert error for ${rec.position} on ${rec.date}:`, error.message);
+      console.error(
+        `[Dolce] Upsert error for ${rec.position} on ${rec.date}:`,
+        error.message,
+      );
     } else {
       upserted++;
     }
@@ -438,31 +697,29 @@ async function upsertScheduledLabor(
 // ---------------------------------------------------------------------------
 
 async function main(): Promise<void> {
-  console.log('=== Dolce TeamWork Schedule Sync ===');
+  console.log('=== Dolce Schedule Sync (Shift-Level) ===');
   console.log(`Time: ${new Date().toISOString()}`);
 
   // Parse --week argument
-  const weekArg = process.argv.find(a => a.startsWith('--week'));
-  const weekDate = weekArg ? process.argv[process.argv.indexOf(weekArg) + 1] : undefined;
+  const weekArg = process.argv.find((a) => a.startsWith('--week'));
+  const weekDate = weekArg
+    ? process.argv[process.argv.indexOf(weekArg) + 1]
+    : undefined;
   const { monday, sunday, weekDates } = getWeekBounds(weekDate);
   console.log(`Week: ${monday} to ${sunday}`);
 
   const sb = getSupabase();
 
-  // Fetch mappings and DOW weights in parallel
-  const [mappings, dowWeights] = await Promise.all([
-    fetchDolceMappings(sb),
-    fetchDowWeights(sb),
-  ]);
-
-  console.log(`[Dolce] Loaded ${mappings.length} role mappings, ${dowWeights.length} DOW weights`);
+  // Fetch role mappings
+  const mappings = await fetchDolceMappings(sb);
+  console.log(`[Dolce] Loaded ${mappings.length} role mappings`);
 
   if (mappings.length === 0) {
     console.error('[Dolce] No role mappings found! Run seed SQL first.');
     process.exit(1);
   }
 
-  // Build mapping lookup
+  // Build mapping lookup (lowercase key -> dashboard position)
   const mappingLookup = new Map<string, string>();
   for (const m of mappings) {
     mappingLookup.set(m.dolce_role_name.toLowerCase(), m.dashboard_position);
@@ -472,75 +729,186 @@ async function main(): Promise<void> {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: 1280, height: 900 },
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    userAgent:
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
   });
   const page = await context.newPage();
 
   try {
     await loginToDolce(page);
-    await navigateToReport(page, monday, sunday);
-    const roles = await parseReportHTML(page);
+    await navigateToSchedules(page);
+    const pageText = await getPageText(page);
 
-    if (roles.length === 0) {
-      console.warn('[Dolce] No roles parsed from report. Taking screenshot for debug...');
+    // Debug: save page text for troubleshooting
+    if (process.env.DOLCE_DEBUG) {
+      const fs = await import('fs');
+      fs.writeFileSync('/tmp/dolce-page-text.txt', pageText);
+      console.log('[Debug] Page text saved to /tmp/dolce-page-text.txt');
+    }
+
+    // 1. Parse Daily Analytics Summary
+    const dailyAnalytics = parseDailyAnalytics(pageText, weekDates);
+    console.log(
+      `\n[Parse] Daily Analytics: ${dailyAnalytics.length} days found`,
+    );
+    for (const da of dailyAnalytics) {
+      console.log(
+        `  ${da.date}: ${da.schedHours} hrs, $${da.schedHrlyDollars} hrly, $${da.schedSalaryDollars} salary`,
+      );
+    }
+
+    // 2. Parse shifts from Role Analytics summary at bottom of page
+    // The page text contains role summary lines like:
+    //   Cook	$8,503.68	8.26%	$3,202.50	9.6%	$3,664.71	9.0%
+    // Extract role name and scheduled $ (first dollar amount)
+    const roleWeeklyTotals = new Map<string, number>();
+    const roleSummaryRegex = /^(.+?)\t\$([\d,]+\.\d{2})\t[\d.]+%/gm;
+    let match;
+    while ((match = roleSummaryRegex.exec(pageText)) !== null) {
+      const roleName = match[1].trim();
+      const dollars = parseFloat(match[2].replace(/,/g, ''));
+      if (dollars > 0 && !roleName.match(/^(total|overtime|regular|salary|hourly)/i)) {
+        roleWeeklyTotals.set(roleName, (roleWeeklyTotals.get(roleName) ?? 0) + dollars);
+      }
+    }
+
+    console.log(`\n[Parse] Role summary totals: ${roleWeeklyTotals.size} roles found`);
+    for (const [role, total] of roleWeeklyTotals) {
+      console.log(`  ${role}: $${total.toFixed(2)}`);
+    }
+
+    // 2b. Also try individual shift parsing for per-day breakdown
+    const shifts = parseShifts(pageText, weekDates);
+    console.log(`[Parse] Individual shifts: ${shifts.length} found`);
+
+    // Use role summary fallback if:
+    // - No individual shifts parsed, OR
+    // - Shifts parsed but all assigned to same day (day tracking broken)
+    const uniqueDays = new Set(shifts.map(s => s.date));
+    let useRoleSummaryFallback = roleWeeklyTotals.size > 0 && (shifts.length === 0 || uniqueDays.size <= 1);
+    if (useRoleSummaryFallback && shifts.length > 0) {
+      console.log(`[Parse] ${shifts.length} shifts found but only ${uniqueDays.size} day(s) detected — using role summary fallback`);
+    }
+
+    if (shifts.length === 0 && roleWeeklyTotals.size === 0) {
+      console.warn('[Dolce] No shifts or role summaries parsed. Taking screenshot...');
       await page.screenshot({ path: '/tmp/dolce-debug.png', fullPage: true });
       console.log('[Dolce] Screenshot saved to /tmp/dolce-debug.png');
-      process.exit(1);
+      if (dailyAnalytics.length === 0) {
+        console.error('[Dolce] No data at all. Exiting.');
+        process.exit(1);
+      }
+      console.warn('[Dolce] Falling back to daily analytics totals only');
     }
 
-    // Map roles to dashboard positions and distribute to daily
-    const allRecords: Array<{ date: string; position: string; dollars: number; hours: number }> = [];
+    // 3. Build per-position daily records
+    let roleDayHours: RoleDayHours[];
 
-    // Aggregate by dashboard position (multiple Dolce roles may map to same position)
-    const positionAgg = new Map<string, { dollars: number; hours: number }>();
+    if (useRoleSummaryFallback) {
+      // Distribute role weekly totals to daily using analytics hours proportions
+      const totalWeekHrs = dailyAnalytics.reduce((s, d) => s + d.schedHours, 0);
+      const dayWeights = dailyAnalytics.map(d => totalWeekHrs > 0 ? d.schedHours / totalWeekHrs : 1/7);
 
-    for (const role of roles) {
-      const dashPos = mappingLookup.get(role.roleName.toLowerCase());
-      if (!dashPos) {
-        console.warn(`  [UNMAPPED] "${role.roleName}" -- skipping`);
-        continue;
+      // Skip per-position hours distribution — go directly to position records
+      const positionRecordsDirect: PositionDayRecord[] = [];
+      for (const [roleName, weeklyTotal] of roleWeeklyTotals) {
+        const dashPos = findMapping(roleName, mappingLookup);
+        if (!dashPos || dashPos === 'EXCLUDE') {
+          console.log(`  [SKIP] "${roleName}" -> ${dashPos || 'UNMAPPED'}`);
+          continue;
+        }
+        for (let i = 0; i < dailyAnalytics.length; i++) {
+          const da = dailyAnalytics[i];
+          const dayDollars = Math.round(weeklyTotal * (dayWeights[i] || 0) * 100) / 100;
+          const dayHours = Math.round(da.schedHours * (dayWeights[i] || 0) * 100) / 100;
+          positionRecordsDirect.push({
+            date: da.date,
+            position: dashPos,
+            scheduledDollars: dayDollars,
+            scheduledHours: dayHours,
+          });
+        }
       }
-      if (dashPos === 'EXCLUDE') {
-        console.log(`  [EXCLUDED] "${role.roleName}"`);
-        continue;
+
+      // Aggregate duplicate positions per day (multiple Dolce roles -> same dashboard position)
+      const aggMap = new Map<string, PositionDayRecord>();
+      for (const rec of positionRecordsDirect) {
+        const key = `${rec.date}|${rec.position}`;
+        const existing = aggMap.get(key);
+        if (existing) {
+          existing.scheduledDollars += rec.scheduledDollars;
+          existing.scheduledHours += rec.scheduledHours;
+        } else {
+          aggMap.set(key, { ...rec });
+        }
       }
 
-      const existing = positionAgg.get(dashPos) || { dollars: 0, hours: 0 };
-      existing.dollars += role.scheduledDollars;
-      existing.hours += role.scheduledHours;
-      positionAgg.set(dashPos, existing);
+      const directRecords = Array.from(aggMap.values());
+      console.log(`\n[Parse] Distributed ${roleWeeklyTotals.size} roles across ${dailyAnalytics.length} days -> ${directRecords.length} position records`);
+      for (const rec of directRecords) {
+        console.log(`  ${rec.date} | ${rec.position}: $${rec.scheduledDollars.toFixed(2)}`);
+      }
+
+      // Upsert directly and exit
+      console.log(`\n[Dolce] Upserting ${directRecords.length} records to scheduled_labor...`);
+      const upserted = await upsertScheduledLabor(sb, directRecords);
+      console.log(`[Dolce] Successfully upserted ${upserted} records`);
+      console.log('\n=== Dolce Schedule Sync Complete ===');
+      await browser.close();
+      return;
+    } else {
+      roleDayHours = aggregateShiftsByDateRole(shifts);
+    }
+    console.log(`[Parse] Aggregated into ${roleDayHours.length} date+role groups`);
+
+    // Log unmapped roles
+    const unmappedRoles = new Set<string>();
+    for (const rdh of roleDayHours) {
+      const mapped = findMapping(rdh.dolceRole, mappingLookup);
+      if (!mapped) {
+        unmappedRoles.add(rdh.dolceRole);
+      } else if (mapped === 'EXCLUDE') {
+        // silently skip
+      }
+    }
+    if (unmappedRoles.size > 0) {
+      console.warn('\n[Dolce] Unmapped Dolce roles:');
+      for (const role of unmappedRoles) {
+        console.warn(`  [UNMAPPED] "${role}"`);
+      }
     }
 
-    console.log('\n[Dolce] Position aggregates (weekly):');
-    for (const [pos, agg] of positionAgg) {
-      console.log(`  ${pos}: $${agg.dollars.toFixed(2)}, ${agg.hours.toFixed(1)} hrs`);
+    // 4. Calculate per-position daily records
+    const positionRecords = calculatePositionDayRecords(
+      roleDayHours,
+      dailyAnalytics,
+      mappingLookup,
+    );
 
-      const dailyRecords = distributeWeeklyToDaily(
-        agg.dollars,
-        agg.hours,
-        pos,
-        weekDates,
-        dowWeights,
+    console.log(
+      `\n[Dolce] Per-position daily records: ${positionRecords.length}`,
+    );
+    for (const rec of positionRecords) {
+      console.log(
+        `  ${rec.date} | ${rec.position}: $${rec.scheduledDollars.toFixed(2)}, ${rec.scheduledHours.toFixed(1)} hrs`,
       );
-
-      allRecords.push(...dailyRecords.map(d => ({
-        date: d.date,
-        position: pos,
-        dollars: d.dollars,
-        hours: d.hours,
-      })));
     }
 
-    // Upsert to scheduled_labor
-    console.log(`\n[Dolce] Upserting ${allRecords.length} daily records to scheduled_labor...`);
-    const upserted = await upsertScheduledLabor(sb, allRecords);
+    // 5. Upsert to scheduled_labor
+    console.log(
+      `\n[Dolce] Upserting ${positionRecords.length} records to scheduled_labor...`,
+    );
+    const upserted = await upsertScheduledLabor(sb, positionRecords);
     console.log(`[Dolce] Successfully upserted ${upserted} records`);
 
-    console.log('\n=== Dolce Sync Complete ===');
+    console.log('\n=== Dolce Schedule Sync Complete ===');
   } catch (err) {
     console.error('[Dolce] Fatal error:', err);
     try {
-      await page.screenshot({ path: '/tmp/dolce-error.png', fullPage: true });
+      await page.screenshot({
+        path: '/tmp/dolce-error.png',
+        fullPage: true,
+      });
       console.log('[Dolce] Error screenshot saved to /tmp/dolce-error.png');
     } catch {
       // ignore screenshot errors

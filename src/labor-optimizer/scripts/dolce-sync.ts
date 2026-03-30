@@ -990,10 +990,27 @@ async function main(): Promise<void> {
     await navigateToSchedules(page);
     const defaultPageText = await getPageText(page);
 
-    if (process.env.DOLCE_DEBUG) {
+    // Always save debug artifacts for inspection
+    try {
       const fs = await import('fs');
       fs.writeFileSync('/tmp/dolce-page-text.txt', defaultPageText);
-      console.log('[Debug] Default page text saved to /tmp/dolce-page-text.txt');
+      await page.screenshot({ path: '/tmp/dolce-schedule.png', fullPage: true });
+      // Log all links on the page that might be schedule group navigation
+      const links = await page.$$eval('a', (els) =>
+        els.map(e => ({ text: e.textContent?.trim().substring(0, 60), href: e.getAttribute('href')?.substring(0, 80) }))
+          .filter(l => l.text && l.text.length > 0)
+      );
+      const selects = await page.$$eval('select', (els) =>
+        els.map(e => ({ id: e.id, name: e.name, options: Array.from(e.options).map(o => o.text.trim()) }))
+      );
+      console.log('[Debug] All selects:', JSON.stringify(selects.slice(0, 5)));
+      console.log('[Debug] Links count:', links.length);
+      // Show links that might be location/group navigation
+      const groupLinks = links.filter(l => l.text && (l.text.includes('FOH') || l.text.includes('BOH') || l.text.includes('Lowland') || l.text.includes('LSD') || l.text.includes('Quoin') || l.text.includes('Mulherin')));
+      console.log('[Debug] Group-like links:', JSON.stringify(groupLinks.slice(0, 10)));
+      console.log('[Debug] Page screenshots saved to /tmp/dolce-schedule.png');
+    } catch (e) {
+      console.warn('[Debug] Could not save debug artifacts:', (e as Error).message);
     }
 
     // Test if group selector navigation works (try switching to second location)

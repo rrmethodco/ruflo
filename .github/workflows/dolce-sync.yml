@@ -48,10 +48,12 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
 
-      - name: Upload debug screenshots (on failure)
-        if: failure()
+      - name: Upload debug artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dolce-debug-screenshots
-          path: /tmp/dolce-*.png
-          retention-days: 7
+          name: dolce-debug
+          path: |
+            /tmp/dolce-*.png
+            /tmp/dolce-page-text.txt
+          retention-days: 3

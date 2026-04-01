@@ -23,49 +23,116 @@ function gradeFromScore(score: number): string {
   return 'F';
 }
 
-function accuracyScore(mape: number): number {
-  if (mape < 0.05) return 100;
-  if (mape < 0.10) return 85;
-  if (mape < 0.15) return 70;
-  if (mape < 0.20) return 55;
-  return 40;
+function accuracyPts(mape: number): number {
+  if (mape < 0.05) return 30;
+  if (mape < 0.10) return 20;
+  if (mape < 0.15) return 10;
+  return 0;
 }
 
-function consistencyScore(errors: number[]): number {
-  if (errors.length < 2) return 50;
+function consistencyPts(errors: number[]): number {
+  if (errors.length < 2) return 10;
   const mean = errors.reduce((a, b) => a + b, 0) / errors.length;
   const variance = errors.reduce((s, e) => s + (e - mean) ** 2, 0) / errors.length;
   const stdDev = Math.sqrt(variance);
-  if (stdDev < 0.05) return 100;
-  if (stdDev < 0.10) return 85;
-  if (stdDev < 0.15) return 70;
-  if (stdDev < 0.20) return 55;
-  return 40;
+  if (stdDev < 0.05) return 20;
+  if (stdDev < 0.10) return 15;
+  if (stdDev < 0.15) return 10;
+  return 5;
 }
 
-function biasScore(meanBias: number): number {
+function biasPts(meanBias: number): number {
   const absBias = Math.abs(meanBias);
-  if (absBias < 0.02) return 100;
-  if (absBias < 0.05) return 80;
-  if (absBias < 0.10) return 60;
-  return 40;
+  if (absBias < 0.02) return 20;
+  if (absBias < 0.05) return 15;
+  if (absBias < 0.10) return 10;
+  return 5;
 }
 
-function improvementScore(recentMape: number | null, priorMape: number | null): number {
-  if (recentMape === null || priorMape === null) return 70;
-  if (priorMape === 0) return 70;
+function improvementPts(recentMape: number | null, priorMape: number | null): number {
+  if (recentMape === null || priorMape === null) return 8;
+  if (priorMape === 0) return 8;
   const change = (recentMape - priorMape) / priorMape;
-  if (change < -0.20) return 100;
-  if (change < -0.10) return 90;
-  if (change < 0) return 80;
-  if (change < 0.10) return 65;
-  return 45;
+  if (change < -0.20) return 15;
+  if (change < -0.10) return 12;
+  if (change < 0) return 10;
+  if (change < 0.10) return 6;
+  return 3;
 }
 
-function coverageScore(forecastDays: number, actualDays: number): number {
-  if (actualDays === 0) return 50;
+function coveragePts(forecastDays: number, actualDays: number): number {
+  if (actualDays === 0) return 8;
   const ratio = forecastDays / actualDays;
-  return Math.min(100, Math.round(ratio * 100));
+  return Math.min(15, Math.round(ratio * 15));
+}
+
+function computeScore(mape: number, errors: number[], meanBias: number, recentMape: number | null, priorMape: number | null, fcDays: number, actDays: number) {
+  const acc = accuracyPts(mape);
+  const cons = consistencyPts(errors);
+  const bias = biasPts(meanBias);
+  const imp = improvementPts(recentMape, priorMape);
+  const cov = coveragePts(fcDays, actDays);
+  const total = acc + cons + bias + imp + cov; // max 100
+  return { score: total, grade: gradeFromScore(total), breakdown: { accuracy: acc, consistency: cons, biasControl: bias, improvement: imp, coverage: cov } };
+}
+
+function rd4(n: number): number { return Math.round(n * 10000) / 10000; }
+
+interface PairedDay {
+  date: string;
+  dayOfWeek: string;
+  forecast: number;
+  actual: number;
+  errorPct: number;
+}
+
+function buildAnalysis(paired: PairedDay[], totalFcDays: number, totalActDays: number) {
+  const errorPcts = paired.map(d => d.errorPct);
+  const absErrorPcts = errorPcts.map(Math.abs);
+  const mape = absErrorPcts.length > 0 ? absErrorPcts.reduce((a, b) => a + b, 0) / absErrorPcts.length : 0;
+  const meanBias = errorPcts.length > 0 ? errorPcts.reduce((a, b) => a + b, 0) / errorPcts.length : 0;
+
+  // DOW analysis
+  const dowGroups: Record<string, { forecasts: number[]; actuals: number[]; errors: number[] }> = {};
+  for (const day of paired) {
+    if (!dowGroups[day.dayOfWeek]) dowGroups[day.dayOfWeek] = { forecasts: [], actuals: [], errors: [] };
+    dowGroups[day.dayOfWeek].forecasts.push(day.forecast);
+    dowGroups[day.dayOfWeek].actuals.push(day.actual);
+    dowGroups[day.dayOfWeek].errors.push(day.errorPct);
+  }
+  const dowAnalysis = DAY_NAMES.map(dow => {
+    const g = dowGroups[dow];
+    if (!g || g.errors.length === 0) return { dow, avgForecast: 0, avgActual: 0, mape: 0, bias: 0, count: 0, grade: '-' };
+    const avgFc = Math.round(g.forecasts.reduce((a, b) => a + b, 0) / g.forecasts.length);
+    const avgAct = Math.round(g.actuals.reduce((a, b) => a + b, 0) / g.actuals.length);
+    const dMape = g.errors.map(Math.abs).reduce((a, b) => a + b, 0) / g.errors.length;
+    const dBias = g.errors.reduce((a, b) => a + b, 0) / g.errors.length;
+    return { dow, avgForecast: avgFc, avgActual: avgAct, mape: rd4(dMape), bias: rd4(dBias), count: g.errors.length, grade: gradeFromScore(dMape < 0.05 ? 97 : dMape < 0.10 ? 85 : dMape < 0.15 ? 73 : 55) };
+  });
+
+  // Improvement: compare last half vs first half
+  const halfIdx = Math.floor(paired.length / 2);
+  const firstHalf = paired.slice(0, halfIdx);
+  const secondHalf = paired.slice(halfIdx);
+  const firstMape = firstHalf.length > 0 ? firstHalf.map(d => Math.abs(d.errorPct)).reduce((a, b) => a + b, 0) / firstHalf.length : null;
+  const secondMape = secondHalf.length > 0 ? secondHalf.map(d => Math.abs(d.errorPct)).reduce((a, b) => a + b, 0) / secondHalf.length : null;
+
+  const grading = computeScore(mape, errorPcts, meanBias, secondMape, firstMape, totalFcDays, totalActDays);
+  const prevScore = firstMape !== null ? computeScore(firstMape, firstHalf.map(d => d.errorPct), 0, null, null, totalFcDays, totalActDays).score : null;
+  const trend = prevScore !== null ? (grading.score > prevScore ? 'improving' : grading.score < prevScore ? 'declining' : 'stable') : 'stable';
+
+  return {
+    mape: rd4(mape),
+    bias: rd4(meanBias),
+    score: grading.score,
+    grade: grading.grade,
+    breakdown: grading.breakdown,
+    previousScore: prevScore,
+    trend,
+    dailyDetail: paired.map(d => ({ date: d.date, dayOfWeek: d.dayOfWeek, forecast: Math.round(d.forecast), actual: Math.round(d.actual), errorPct: rd4(d.errorPct) })),
+    dowAnalysis,
+    totalForecasts: paired.length,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -77,105 +144,67 @@ export const GET: RequestHandler = async ({ url }) => {
   const locationId = url.searchParams.get('locationId');
   const weeksBack = Number(url.searchParams.get('weeksBack') || '4');
 
-  if (!locationId) {
-    return json({ error: 'locationId required' }, { status: 400 });
-  }
+  if (!locationId) return json({ error: 'locationId required' }, { status: 400 });
 
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - weeksBack * 7);
   const cutoffStr = cutoff.toISOString().split('T')[0];
   const todayStr = new Date().toISOString().split('T')[0];
 
-  // Wide range for trailing 2-week avg and SDLY lookups
   const wideCutoff = new Date();
-  wideCutoff.setDate(wideCutoff.getDate() - 400); // ~13 months for SDLY
+  wideCutoff.setDate(wideCutoff.getDate() - 400);
   const wideCutoffStr = wideCutoff.toISOString().split('T')[0];
 
-  // Fetch all data in parallel
-  const [
-    { data: accuracyRows },
-    { data: forecastRows },
-    { data: actualRows },
-    { data: budgetRows },
-    { data: wideActualRows },
-  ] = await Promise.all([
-    sb.from('forecast_accuracy')
-      .select('*')
-      .eq('location_id', locationId)
-      .gte('business_date', cutoffStr)
-      .lte('business_date', todayStr)
-      .order('business_date', { ascending: true }),
+  const [{ data: forecastRows }, { data: actualRows }, { data: budgetRows }, { data: wideActualRows }, { data: accuracyRows }] = await Promise.all([
     sb.from('daily_forecasts')
-      .select('business_date, manager_revenue, manager_covers, ai_suggested_revenue, ai_confidence, forecast_weights, override_tags, is_override, accepted_at')
-      .eq('location_id', locationId)
-      .gte('business_date', cutoffStr)
-      .lte('business_date', todayStr)
-      .not('manager_revenue', 'is', null),
+      .select('business_date, manager_revenue, ai_suggested_revenue, ai_confidence, forecast_weights, override_tags, is_override, accepted_at')
+      .eq('location_id', locationId).gte('business_date', cutoffStr).lte('business_date', todayStr)
+      .or('manager_revenue.not.is.null,ai_suggested_revenue.not.is.null'),
     sb.from('daily_actuals')
       .select('business_date, revenue, covers, prior_year_revenue')
-      .eq('location_id', locationId)
-      .gte('business_date', cutoffStr)
-      .lte('business_date', todayStr)
-      .gt('revenue', 0),
+      .eq('location_id', locationId).gte('business_date', cutoffStr).lte('business_date', todayStr).gt('revenue', 0),
     sb.from('daily_budget')
       .select('business_date, budget_revenue')
-      .eq('location_id', locationId)
-      .gte('business_date', cutoffStr)
-      .lte('business_date', todayStr),
-    // Wide range actuals for trailing 2W avg and SDLY lookups
+      .eq('location_id', locationId).gte('business_date', cutoffStr).lte('business_date', todayStr),
     sb.from('daily_actuals')
       .select('business_date, revenue')
-      .eq('location_id', locationId)
-      .gte('business_date', wideCutoffStr)
-      .lte('business_date', todayStr)
-      .gt('revenue', 0),
+      .eq('location_id', locationId).gte('business_date', wideCutoffStr).lte('business_date', todayStr).gt('revenue', 0),
+    sb.from('forecast_accuracy')
+      .select('*').eq('location_id', locationId).gte('business_date', cutoffStr).lte('business_date', todayStr)
+      .order('business_date', { ascending: true }),
   ]);
 
   const forecasts = forecastRows || [];
   const actuals = actualRows || [];
   const budgets = budgetRows || [];
+  const wideActuals = wideActualRows || [];
   const accuracy = accuracyRows || [];
 
-  // Build lookup maps
   const forecastMap = new Map(forecasts.map(f => [f.business_date, f]));
   const actualMap = new Map(actuals.map(a => [a.business_date, a]));
   const budgetMap = new Map(budgets.map(b => [b.business_date, b]));
-
-  // ---------------------------------------------------------------------------
-  // Daily Comparison
-  // ---------------------------------------------------------------------------
-  const dailyComparison: any[] = [];
-  const allDates = new Set([
-    ...forecasts.map(f => f.business_date),
-    ...actuals.map(a => a.business_date),
-  ]);
-  const sortedDates = [...allDates].sort();
-
-  // Build actuals lookup using WIDE range data for trailing avg + SDLY lookups
-  const wideActuals = wideActualRows || [];
   const actualsLookup = new Map(wideActuals.map((a: any) => [a.business_date, a.revenue || 0]));
 
-  // P1 starts 12/29/2025 — for same period last year, offset by 364 days (52 weeks)
-  const P1_START = new Date('2025-12-29T12:00:00');
-  const PY_OFFSET_DAYS = 364; // same DOW position, 52 weeks back
+  const PY_OFFSET_DAYS = 364;
+
+  // Build daily comparison + paired arrays for AI and Manager
+  const allDates = new Set([...forecasts.map(f => f.business_date), ...actuals.map(a => a.business_date)]);
+  const sortedDates = [...allDates].sort();
+  const dailyComparison: any[] = [];
+  const aiPaired: PairedDay[] = [];
+  const mgrPaired: PairedDay[] = [];
+
+  let helixoBetter = 0, managerBetter = 0, sameCount = 0;
 
   for (const date of sortedDates) {
     const fc = forecastMap.get(date);
     const act = actualMap.get(date);
     const bud = budgetMap.get(date);
-    const forecastRev = fc?.manager_revenue ?? null;
+    const aiRev = fc?.ai_suggested_revenue ?? null;
+    const mgrRev = fc?.manager_revenue ?? null;
     const actualRev = act?.revenue ?? null;
-    const budgetRev = bud?.budget_revenue ?? null;
     const d = new Date(date + 'T12:00:00');
     const dow = DAY_NAMES[d.getDay()];
-    const dowNum = d.getDay();
-
-    let error: number | null = null;
-    let errorPct: number | null = null;
-    if (forecastRev != null && actualRev != null && forecastRev > 0) {
-      error = actualRev - forecastRev;
-      errorPct = error / forecastRev;
-    }
 
     // Trailing 2-week same-DOW average
     let trailing2wAvg: number | null = null;
@@ -183,282 +212,128 @@ export const GET: RequestHandler = async ({ url }) => {
     for (let wk = 1; wk <= 2; wk++) {
       const priorDate = new Date(d);
       priorDate.setDate(priorDate.getDate() - wk * 7);
-      const priorStr = priorDate.toISOString().split('T')[0];
-      const rev = actualsLookup.get(priorStr);
+      const rev = actualsLookup.get(priorDate.toISOString().split('T')[0]);
       if (rev && rev > 0) sameDowRevs.push(rev);
     }
-    if (sameDowRevs.length > 0) {
-      trailing2wAvg = Math.round(sameDowRevs.reduce((a, b) => a + b, 0) / sameDowRevs.length);
-    }
+    if (sameDowRevs.length > 0) trailing2wAvg = Math.round(sameDowRevs.reduce((a, b) => a + b, 0) / sameDowRevs.length);
 
-    // Same period last year (364 days back = same DOW position)
     const pyDate = new Date(d);
     pyDate.setDate(pyDate.getDate() - PY_OFFSET_DAYS);
-    const pyStr = pyDate.toISOString().split('T')[0];
-    const pyRevenue = actualsLookup.get(pyStr) || (act?.prior_year_revenue ?? null);
+    const pyRevenue = actualsLookup.get(pyDate.toISOString().split('T')[0]) || (act?.prior_year_revenue ?? null);
+
+    // Error calculations
+    let aiError: number | null = null, aiErrorPct: number | null = null;
+    let mgrError: number | null = null, mgrErrorPct: number | null = null;
+
+    if (aiRev != null && actualRev != null && actualRev > 0) {
+      aiError = actualRev - aiRev;
+      aiErrorPct = (actualRev - aiRev) / actualRev;
+      aiPaired.push({ date, dayOfWeek: dow, forecast: aiRev, actual: actualRev, errorPct: aiErrorPct });
+    }
+    if (mgrRev != null && actualRev != null && actualRev > 0) {
+      mgrError = actualRev - mgrRev;
+      mgrErrorPct = (actualRev - mgrRev) / actualRev;
+      mgrPaired.push({ date, dayOfWeek: dow, forecast: mgrRev, actual: actualRev, errorPct: mgrErrorPct });
+    }
+
+    // Head-to-head comparison
+    if (aiRev != null && mgrRev != null && actualRev != null && actualRev > 0) {
+      const aiAbsErr = Math.abs(actualRev - aiRev);
+      const mgrAbsErr = Math.abs(actualRev - mgrRev);
+      if (Math.abs(aiAbsErr - mgrAbsErr) < 1) sameCount++;
+      else if (aiAbsErr < mgrAbsErr) helixoBetter++;
+      else managerBetter++;
+    }
 
     dailyComparison.push({
-      date,
-      dayOfWeek: dow,
-      forecast: forecastRev,
-      actual: actualRev,
-      budget: budgetRev,
-      trailing2wAvg,
+      date, dayOfWeek: dow,
+      aiSuggested: aiRev, managerForecast: mgrRev, actual: actualRev,
+      budget: bud?.budget_revenue ?? null, trailing2wAvg,
       samePeriodPY: pyRevenue ? Math.round(pyRevenue) : null,
-      error: error != null ? Math.round(error) : null,
-      errorPct: errorPct != null ? Math.round(errorPct * 10000) / 10000 : null,
+      aiError: aiError != null ? Math.round(aiError) : null,
+      aiErrorPct: aiErrorPct != null ? rd4(aiErrorPct) : null,
+      mgrError: mgrError != null ? Math.round(mgrError) : null,
+      mgrErrorPct: mgrErrorPct != null ? rd4(mgrErrorPct) : null,
       confidence: fc?.ai_confidence ?? null,
     });
   }
 
-  // ---------------------------------------------------------------------------
-  // Core Metrics
-  // ---------------------------------------------------------------------------
-  const pairedDays = dailyComparison.filter(d => d.forecast != null && d.actual != null && d.forecast > 0);
-  const errorPcts = pairedDays.map(d => d.errorPct as number);
-  const absErrorPcts = errorPcts.map(Math.abs);
+  // Build separate analyses
+  const helixoAccuracy = buildAnalysis(aiPaired, forecasts.filter(f => f.ai_suggested_revenue != null).length, actuals.length);
+  const approvedAccuracy = buildAnalysis(mgrPaired, forecasts.length, actuals.length);
 
-  const mape = absErrorPcts.length > 0
-    ? absErrorPcts.reduce((a, b) => a + b, 0) / absErrorPcts.length
-    : 0;
-
-  const meanBias = errorPcts.length > 0
-    ? errorPcts.reduce((a, b) => a + b, 0) / errorPcts.length
-    : 0;
-
-  // R-squared
-  let r2 = 0;
-  if (pairedDays.length > 1) {
-    const actVals = pairedDays.map(d => d.actual as number);
-    const fcVals = pairedDays.map(d => d.forecast as number);
-    const meanAct = actVals.reduce((a, b) => a + b, 0) / actVals.length;
-    const ssRes = actVals.reduce((s, a, i) => s + (a - fcVals[i]) ** 2, 0);
-    const ssTot = actVals.reduce((s, a) => s + (a - meanAct) ** 2, 0);
-    r2 = ssTot > 0 ? Math.round((1 - ssRes / ssTot) * 1000) / 1000 : 0;
+  // Comparison
+  const totalCompared = helixoBetter + managerBetter + sameCount;
+  let avgImprovement = 0;
+  if (totalCompared > 0 && helixoAccuracy.mape > 0) {
+    avgImprovement = rd4((helixoAccuracy.mape - approvedAccuracy.mape) / helixoAccuracy.mape);
+  }
+  let recommendation = '';
+  if (avgImprovement > 0.01) {
+    recommendation = `Manager overrides improve accuracy by ${Math.round(avgImprovement * 100)}% on average.`;
+  } else if (avgImprovement < -0.01) {
+    recommendation = `AI suggestions are ${Math.round(Math.abs(avgImprovement) * 100)}% more accurate on average - consider trusting the AI forecast more often.`;
+  } else {
+    recommendation = 'AI and manager forecasts perform similarly overall.';
   }
 
-  // Threshold counts
-  const within5 = absErrorPcts.filter(e => e <= 0.05).length;
-  const within10 = absErrorPcts.filter(e => e <= 0.10).length;
-  const within15 = absErrorPcts.filter(e => e <= 0.15).length;
-
-  // ---------------------------------------------------------------------------
-  // DOW Analysis
-  // ---------------------------------------------------------------------------
-  const dowGroups: Record<string, { forecasts: number[]; actuals: number[]; errors: number[] }> = {};
-  for (const day of pairedDays) {
-    const dow = day.dayOfWeek;
-    if (!dowGroups[dow]) dowGroups[dow] = { forecasts: [], actuals: [], errors: [] };
-    dowGroups[dow].forecasts.push(day.forecast);
-    dowGroups[dow].actuals.push(day.actual);
-    dowGroups[dow].errors.push(day.errorPct);
-  }
-
-  const dowAnalysis = DAY_NAMES.map(dow => {
-    const group = dowGroups[dow];
-    if (!group || group.errors.length === 0) {
-      return { dow, avgForecast: 0, avgActual: 0, mape: 0, bias: 0, count: 0, grade: '-' };
-    }
-    const avgFc = Math.round(group.forecasts.reduce((a, b) => a + b, 0) / group.forecasts.length);
-    const avgAct = Math.round(group.actuals.reduce((a, b) => a + b, 0) / group.actuals.length);
-    const dowMape = group.errors.map(Math.abs).reduce((a, b) => a + b, 0) / group.errors.length;
-    const dowBias = group.errors.reduce((a, b) => a + b, 0) / group.errors.length;
-    const dowScore = accuracyScore(dowMape);
-    return {
-      dow,
-      avgForecast: avgFc,
-      avgActual: avgAct,
-      mape: Math.round(dowMape * 10000) / 10000,
-      bias: Math.round(dowBias * 10000) / 10000,
-      count: group.errors.length,
-      grade: gradeFromScore(dowScore),
-    };
-  });
-
-  // ---------------------------------------------------------------------------
-  // Weekly Trend (group by ISO week)
-  // ---------------------------------------------------------------------------
-  const weekBuckets: Record<string, number[]> = {};
-  for (const day of pairedDays) {
-    const d = new Date(day.date + 'T12:00:00');
-    const weekStart = new Date(d);
-    weekStart.setDate(d.getDate() - d.getDay());
-    const label = weekStart.toISOString().split('T')[0];
-    if (!weekBuckets[label]) weekBuckets[label] = [];
-    weekBuckets[label].push(Math.abs(day.errorPct));
-  }
-
-  const weeklyTrend = Object.entries(weekBuckets)
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([week, errors]) => {
-      const wMape = errors.reduce((a, b) => a + b, 0) / errors.length;
-      return {
-        week,
-        mape: Math.round(wMape * 10000) / 10000,
-        score: accuracyScore(wMape),
-      };
-    });
-
-  // ---------------------------------------------------------------------------
-  // Tag Impact
-  // ---------------------------------------------------------------------------
+  // Tag impact (unchanged logic, uses manager_revenue)
   const tagImpact: any[] = [];
-  const tagStats: Record<string, { count: number; errors: number[]; revImpacts: number[] }> = {};
+  const tagStats: Record<string, { count: number; errors: number[] }> = {};
   for (const fc of forecasts) {
     const tags = fc.override_tags as string[] | null;
     if (!tags || tags.length === 0) continue;
     const act = actualMap.get(fc.business_date);
-    if (!act) continue;
+    if (!act || fc.manager_revenue <= 0) continue;
     for (const tag of tags) {
-      if (!tagStats[tag]) tagStats[tag] = { count: 0, errors: [], revImpacts: [] };
+      if (!tagStats[tag]) tagStats[tag] = { count: 0, errors: [] };
       tagStats[tag].count++;
-      if (fc.manager_revenue > 0) {
-        const errPct = (act.revenue - fc.manager_revenue) / fc.manager_revenue;
-        tagStats[tag].errors.push(errPct);
-        tagStats[tag].revImpacts.push(errPct);
-      }
+      tagStats[tag].errors.push((act.revenue - fc.manager_revenue) / fc.manager_revenue);
     }
   }
   for (const [tag, stats] of Object.entries(tagStats)) {
-    const avgImpact = stats.revImpacts.length > 0
-      ? stats.revImpacts.reduce((a, b) => a + b, 0) / stats.revImpacts.length
-      : 0;
-    const tagAccuracy = stats.errors.length > 0
-      ? 1 - stats.errors.map(Math.abs).reduce((a, b) => a + b, 0) / stats.errors.length
-      : 0;
-    tagImpact.push({
-      tag,
-      occurrences: stats.count,
-      avgRevImpact: Math.round(avgImpact * 10000) / 10000,
-      forecastAccuracy: Math.round(tagAccuracy * 100) / 100,
-    });
+    const avg = stats.errors.reduce((a, b) => a + b, 0) / stats.errors.length;
+    const acc = 1 - stats.errors.map(Math.abs).reduce((a, b) => a + b, 0) / stats.errors.length;
+    tagImpact.push({ tag, occurrences: stats.count, avgRevImpact: rd4(avg), forecastAccuracy: Math.round(acc * 100) / 100 });
   }
 
-  // ---------------------------------------------------------------------------
-  // Weight History (from forecast_accuracy table)
-  // ---------------------------------------------------------------------------
-  const weightHistory = accuracy
-    .filter(r => r.weights_used)
-    .slice(-14)
-    .map(r => ({
-      date: r.business_date,
-      trailing: r.weights_used?.trailing ?? null,
-      pyGrowth: r.weights_used?.pyGrowth ?? null,
-      momentum: r.weights_used?.momentum ?? null,
-      budget: r.weights_used?.budget ?? null,
-    }));
+  // Weight history
+  const weightHistory = accuracy.filter(r => r.weights_used).slice(-14).map(r => ({
+    date: r.business_date, trailing: r.weights_used?.trailing ?? null,
+    pyGrowth: r.weights_used?.pyGrowth ?? null, momentum: r.weights_used?.momentum ?? null, budget: r.weights_used?.budget ?? null,
+  }));
 
-  // ---------------------------------------------------------------------------
-  // Self-Grading
-  // ---------------------------------------------------------------------------
-  const accScore = accuracyScore(mape);
-  const consScore = consistencyScore(errorPcts);
-  const biasCtrl = biasScore(meanBias);
-
-  // Improvement: compare last half vs first half
-  const halfIdx = Math.floor(pairedDays.length / 2);
-  const firstHalf = pairedDays.slice(0, halfIdx);
-  const secondHalf = pairedDays.slice(halfIdx);
-  const firstMape = firstHalf.length > 0
-    ? firstHalf.map(d => Math.abs(d.errorPct)).reduce((a: number, b: number) => a + b, 0) / firstHalf.length
-    : null;
-  const secondMape = secondHalf.length > 0
-    ? secondHalf.map(d => Math.abs(d.errorPct)).reduce((a: number, b: number) => a + b, 0) / secondHalf.length
-    : null;
-  const impScore = improvementScore(secondMape, firstMape);
-
-  const forecastDayCount = forecasts.length;
-  const actualDayCount = actuals.length;
-  const covScore = coverageScore(forecastDayCount, actualDayCount);
-
-  const overallScore = Math.round(
-    accScore * 0.30 + consScore * 0.20 + biasCtrl * 0.20 + impScore * 0.15 + covScore * 0.15,
-  );
-
-  // Previous score (use first half as proxy for "previous period")
-  const prevAccScore = firstMape !== null ? accuracyScore(firstMape) : 70;
-  const previousScore = Math.round(prevAccScore * 0.30 + 70 * 0.70);
-
-  const trend = overallScore > previousScore ? 'improving' : overallScore < previousScore ? 'declining' : 'stable';
-
-  // ---------------------------------------------------------------------------
   // Recommendations
-  // ---------------------------------------------------------------------------
   const recommendations: string[] = [];
-
-  // Worst DOW
-  const activeDow = dowAnalysis.filter(d => d.count > 0);
+  const activeDow = approvedAccuracy.dowAnalysis.filter(d => d.count > 0);
   if (activeDow.length > 0) {
     const worst = activeDow.reduce((a, b) => a.mape > b.mape ? a : b);
     if (worst.mape > 0.10) {
       const dir = worst.bias > 0 ? 'under' : 'over';
-      recommendations.push(
-        `${worst.dow} forecasts are consistently ${Math.round(worst.mape * 100)}% off  - model tends to ${dir}-forecast. Auto-adjusting weights.`,
-      );
-    }
-    const best = activeDow.reduce((a, b) => a.mape < b.mape ? a : b);
-    if (best.mape < 0.08 && best.count >= 2) {
-      recommendations.push(
-        `${best.dow} accuracy is strong at ${Math.round((1 - best.mape) * 100)}% - patterns are well-captured.`,
-      );
+      recommendations.push(`${worst.dow} forecasts are consistently ${Math.round(worst.mape * 100)}% off - model tends to ${dir}-forecast.`);
     }
   }
-
-  if (trend === 'improving') {
-    recommendations.push('Model accuracy is trending upward as adaptive weights learn from recent data.');
-  } else if (trend === 'declining') {
-    recommendations.push('Model accuracy has declined recently - review whether business patterns have shifted.');
+  if (managerBetter > helixoBetter && totalCompared > 3) {
+    recommendations.push(`Manager overrides were closer to actual on ${managerBetter} of ${totalCompared} days - good instincts.`);
+  } else if (helixoBetter > managerBetter && totalCompared > 3) {
+    recommendations.push(`AI was more accurate on ${helixoBetter} of ${totalCompared} days - consider accepting AI suggestions more often.`);
   }
-
-  if (tagImpact.length > 0) {
-    const highImpact = tagImpact.filter(t => Math.abs(t.avgRevImpact) > 0.15);
-    for (const t of highImpact.slice(0, 2)) {
-      const dir = t.avgRevImpact > 0 ? 'positive' : 'negative';
-      recommendations.push(
-        `Events tagged "${t.tag}" have a ${Math.round(Math.abs(t.avgRevImpact) * 100)}% ${dir} revenue impact - factor into forecasts.`,
-      );
-    }
+  if (approvedAccuracy.trend === 'improving') {
+    recommendations.push('Overall forecast accuracy is trending upward.');
+  } else if (approvedAccuracy.trend === 'declining') {
+    recommendations.push('Forecast accuracy has declined recently - review whether business patterns have shifted.');
   }
-
-  const missingDays = actualDayCount - forecastDayCount;
-  if (missingDays > 2) {
-    recommendations.push(
-      `Missing forecasts for ${missingDays} days with actuals - ensure forecasts are accepted by Wednesday each week.`,
-    );
-  }
-
   if (recommendations.length === 0) {
     recommendations.push('Forecast model is performing well across all dimensions. Continue monitoring.');
   }
 
-  // ---------------------------------------------------------------------------
-  // Response
-  // ---------------------------------------------------------------------------
   return json({
-    overallScore,
-    mape: Math.round(mape * 10000) / 10000,
-    bias: Math.round(meanBias * 10000) / 10000,
-    r2,
-    totalForecasts: pairedDays.length,
-    withinThreshold: { '5pct': within5, '10pct': within10, '15pct': within15 },
+    helixoAccuracy,
+    approvedAccuracy,
+    comparison: { helixoBetter, managerBetter, same: sameCount, avgImprovement, recommendation },
     dailyComparison,
-    dowAnalysis,
-    weeklyTrend,
     tagImpact,
     weightHistory,
     recommendations,
-    selfGrading: {
-      score: overallScore,
-      grade: gradeFromScore(overallScore),
-      breakdown: {
-        accuracy: accScore,
-        consistency: consScore,
-        biasControl: biasCtrl,
-        improvement: impScore,
-        coverage: covScore,
-      },
-      previousScore,
-      trend,
-    },
   });
 };

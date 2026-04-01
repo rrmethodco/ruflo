@@ -1,64 +1,16 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { getSupabase } from '$lib/server/supabase';
+import {
+  type InsightsData,
+  type WtdMetrics,
+  formatDatePretty,
+  fetchInsightsDataDirect,
+} from './insights-data';
 
 const NAVY = '#1e3a5f';
-const LIGHT_GRAY = '#f8f9fa';
-const MEDIUM_GRAY = '#6b7280';
 const RED = '#dc2626';
 const GREEN = '#16a34a';
-
-interface InsightsData {
-  date: string;
-  locationName: string;
-  sections: {
-    revenueSummary: string;
-    coversSummary: string;
-    compsAndDiscounts: string;
-    salesMix: string;
-    pmixMovers: string;
-    laborVariance: string;
-    laborSavings: string;
-    hourlyEfficiency: string;
-  };
-  metrics: {
-    revenue: number;
-    budgetRevenue: number;
-    forecastRevenue: number;
-    covers: number;
-    avgCheck: number;
-    totalLaborActual: number;
-    totalLaborProjected: number;
-    laborPctOfRevenue: number;
-    targetLaborPct: number;
-    revVsBudgetDollars: number;
-    revVsBudgetPct: number;
-    revVsForecastDollars: number;
-    revVsForecastPct: number;
-    flaggedPositions: Array<{
-      position: string;
-      actual: number;
-      projected: number;
-      varianceDollars: number;
-      variancePct: number;
-    }>;
-    salesMixData: Array<{
-      category: string;
-      revenue: number;
-      pct_of_total: number;
-    }>;
-    pmixData: Array<{
-      item_name: string;
-      quantity: number;
-      revenue: number;
-    }>;
-    weather: {
-      condition: string;
-      description: string;
-      tempHigh: number | null;
-    } | null;
-  };
-}
 
 function fmt(n: number): string {
   return '$' + Math.round(n).toLocaleString('en-US');
@@ -66,16 +18,6 @@ function fmt(n: number): string {
 
 function pct(n: number): string {
   return (n * 100).toFixed(1) + '%';
-}
-
-function formatDatePretty(dateStr: string): string {
-  const d = new Date(dateStr + 'T12:00:00');
-  return d.toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
 }
 
 /**
@@ -128,7 +70,7 @@ export async function generateInsightsPdf(
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(18);
   doc.setFont('helvetica', 'bold');
-  doc.text('Method Co', margin, 12);
+  doc.text('HELIXO', margin, 12);
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
   doc.text('Daily KPI Insights Report', margin, 19);
@@ -140,6 +82,16 @@ export async function generateInsightsPdf(
   // --- Revenue Summary Card ---
   y = addSectionHeader(doc, 'Revenue Summary', y, margin, contentWidth);
   y = addRevenueCard(doc, data, y, margin, contentWidth);
+
+  // --- Revenue Performance Table ---
+  y = addRevenuePerformanceTable(doc, data, y + 2, margin);
+
+  // --- Week-to-Date Summary ---
+  if (data.wtd) {
+    y = checkPageBreak(doc, y, 50);
+    y = addSectionHeader(doc, 'Week-to-Date Summary', y + 4, margin, contentWidth);
+    y = addWtdTable(doc, data.wtd, y, margin);
+  }
 
   // --- Covers & Average Check ---
   y = addSectionHeader(doc, 'Covers & Average Check', y + 4, margin, contentWidth);
@@ -363,6 +315,97 @@ function addLaborVarianceTable(
   return finalY + 8;
 }
 
+function addRevenuePerformanceTable(
+  doc: jsPDF,
+  data: InsightsData,
+  y: number,
+  margin: number,
+): number {
+  const m = data.metrics;
+  const varBudget$ = m.revenue - m.budgetRevenue;
+  const varBudgetPct = m.budgetRevenue > 0 ? varBudget$ / m.budgetRevenue : 0;
+  const varForecast$ = m.revenue - m.forecastRevenue;
+  const varForecastPct = m.forecastRevenue > 0 ? varForecast$ / m.forecastRevenue : 0;
+  const signStr = (n: number) => (n >= 0 ? '+' : '');
+
+  autoTable(doc, {
+    startY: y,
+    margin: { left: margin, right: margin },
+    head: [['', 'Actual', 'Forecast', 'Budget']],
+    body: [
+      ['Revenue', fmt(m.revenue), fmt(m.forecastRevenue), fmt(m.budgetRevenue)],
+      [
+        'Var to Forecast',
+        '',
+        `${signStr(varForecast$)}${fmt(varForecast$)} (${signStr(varForecastPct)}${pct(Math.abs(varForecastPct))})`,
+        '',
+      ],
+      [
+        'Var to Budget',
+        '',
+        '',
+        `${signStr(varBudget$)}${fmt(varBudget$)} (${signStr(varBudgetPct)}${pct(Math.abs(varBudgetPct))})`,
+      ],
+    ],
+    styles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: [30, 58, 95], textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 249, 250] },
+    theme: 'grid',
+    didParseCell(cellData: any) {
+      if (cellData.section === 'body' && cellData.row.index === 1 && cellData.column.index === 2) {
+        cellData.cell.styles.textColor = varForecast$ >= 0 ? [22, 163, 74] : [220, 38, 38];
+        cellData.cell.styles.fontStyle = 'bold';
+      }
+      if (cellData.section === 'body' && cellData.row.index === 2 && cellData.column.index === 3) {
+        cellData.cell.styles.textColor = varBudget$ >= 0 ? [22, 163, 74] : [220, 38, 38];
+        cellData.cell.styles.fontStyle = 'bold';
+      }
+    },
+  });
+  return (doc as any).lastAutoTable.finalY + 2;
+}
+
+function addWtdTable(
+  doc: jsPDF,
+  wtd: WtdMetrics,
+  y: number,
+  margin: number,
+): number {
+  const revVar = wtd.wtdRevenue - wtd.wtdBudgetRevenue;
+  const revVarPct = wtd.wtdBudgetRevenue > 0 ? revVar / wtd.wtdBudgetRevenue : 0;
+  const laborVar = wtd.wtdLaborActual - wtd.wtdLaborBudget;
+  const laborVarPct = wtd.wtdLaborBudget > 0 ? laborVar / wtd.wtdLaborBudget : 0;
+  const laborPctVar = wtd.wtdLaborPct - wtd.wtdBudgetLaborPct;
+  const signStr = (n: number) => (n >= 0 ? '+' : '');
+
+  autoTable(doc, {
+    startY: y,
+    margin: { left: margin, right: margin },
+    head: [['Metric', 'WTD Actual', 'WTD Budget', 'Variance']],
+    body: [
+      ['Revenue', fmt(wtd.wtdRevenue), fmt(wtd.wtdBudgetRevenue), `${signStr(revVar)}${fmt(revVar)} (${signStr(revVarPct)}${pct(Math.abs(revVarPct))})`],
+      ['Labor $', fmt(wtd.wtdLaborActual), fmt(wtd.wtdLaborBudget), `${signStr(laborVar)}${fmt(laborVar)} (${signStr(laborVarPct)}${pct(Math.abs(laborVarPct))})`],
+      ['Labor %', pct(wtd.wtdLaborPct), pct(wtd.wtdBudgetLaborPct), `${signStr(laborPctVar)}${(laborPctVar * 100).toFixed(1)}pp`],
+    ],
+    styles: { fontSize: 8, cellPadding: 2 },
+    headStyles: { fillColor: [30, 58, 95], textColor: [255, 255, 255], fontStyle: 'bold' },
+    alternateRowStyles: { fillColor: [248, 249, 250] },
+    theme: 'grid',
+    didParseCell(cellData: any) {
+      if (cellData.section === 'body' && cellData.column.index === 3) {
+        if (cellData.row.index === 0) {
+          cellData.cell.styles.textColor = revVar >= 0 ? [22, 163, 74] : [220, 38, 38];
+        } else {
+          // For labor, under budget is good
+          cellData.cell.styles.textColor = laborVar <= 0 ? [22, 163, 74] : [220, 38, 38];
+        }
+        cellData.cell.styles.fontStyle = 'bold';
+      }
+    },
+  });
+  return (doc as any).lastAutoTable.finalY + 2;
+}
+
 function checkPageBreak(doc: jsPDF, y: number, needed: number): number {
   const pageHeight = doc.internal.pageSize.getHeight();
   if (y + needed > pageHeight - 15) {
@@ -379,144 +422,3 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } {
     : { r: 0, g: 0, b: 0 };
 }
 
-/**
- * Direct data fetch — avoids HTTP circular call in serverless.
- * Mirrors the logic from /api/v1/insights endpoint.
- */
-async function fetchInsightsDataDirect(
-  sb: any,
-  locationId: string,
-  date: string,
-  locationName: string,
-): Promise<InsightsData> {
-  const FOH = ['Server', 'Bartender', 'Host', 'Barista', 'Support', 'Training'];
-  const BOH = ['Line Cooks', 'Prep Cooks', 'Pastry', 'Dishwashers'];
-  const ALL = [...FOH, ...BOH];
-
-  const BUDGET_COL_TO_POSITION: Record<string, string> = {
-    server_budget: 'Server',
-    bartender_budget: 'Bartender',
-    host_budget: 'Host',
-    barista_budget: 'Barista',
-    support_budget: 'Support',
-    training_budget: 'Training',
-    line_cooks_budget: 'Line Cooks',
-    prep_cooks_budget: 'Prep Cooks',
-    pastry_budget: 'Pastry',
-    dishwashers_budget: 'Dishwashers',
-  };
-
-  const [
-    { data: actuals },
-    { data: budget },
-    { data: forecast },
-    { data: labor },
-    { data: laborTargets },
-    { data: salesMixRows },
-    { data: pmixRows },
-    { data: loc },
-  ] = await Promise.all([
-    sb.from('daily_actuals').select('*').eq('location_id', locationId).eq('business_date', date).maybeSingle(),
-    sb.from('daily_budget').select('*').eq('location_id', locationId).eq('business_date', date).maybeSingle(),
-    sb.from('daily_forecasts').select('*').eq('location_id', locationId).eq('business_date', date).maybeSingle(),
-    sb.from('daily_labor').select('*').eq('location_id', locationId).eq('business_date', date),
-    sb.from('daily_labor_targets').select('*').eq('location_id', locationId).eq('business_date', date),
-    sb.from('daily_sales_mix').select('*').eq('location_id', locationId).eq('business_date', date).order('revenue', { ascending: false }),
-    sb.from('daily_pmix').select('*').eq('location_id', locationId).eq('business_date', date).order('revenue', { ascending: false }).limit(20),
-    sb.from('locations').select('labor_budget_pct').eq('id', locationId).single(),
-  ]);
-
-  const revenue = actuals?.revenue ?? 0;
-  const covers = actuals?.covers ?? 0;
-  const budgetRevenue = budget?.budget_revenue ?? 0;
-  const forecastRevenue = forecast?.manager_revenue ?? forecast?.ai_suggested_revenue ?? 0;
-  const sameWeekPYRevenue = actuals?.prior_year_revenue ?? 0;
-  const avgCheck = covers > 0 ? revenue / covers : 0;
-  const targetLaborPct = loc?.labor_budget_pct ?? 0.30;
-
-  const laborByPosition: Record<string, number> = {};
-  for (const row of labor || []) {
-    laborByPosition[row.mapped_position] = (laborByPosition[row.mapped_position] || 0) + row.labor_dollars;
-  }
-
-  const targetByPosition: Record<string, number> = {};
-  for (const row of laborTargets || []) {
-    targetByPosition[row.position] = row.projected_labor_dollars;
-  }
-
-  const totalLaborActual = Object.values(laborByPosition).reduce((s, v) => s + v, 0);
-  const totalLaborProjected = Object.values(targetByPosition).reduce((s, v) => s + v, 0);
-  const laborPctOfRevenue = revenue > 0 ? totalLaborActual / revenue : 0;
-
-  const revVsBudgetDollars = revenue - budgetRevenue;
-  const revVsBudgetPct = budgetRevenue > 0 ? revVsBudgetDollars / budgetRevenue : 0;
-  const revVsForecastDollars = revenue - forecastRevenue;
-  const revVsForecastPct = forecastRevenue > 0 ? revVsForecastDollars / forecastRevenue : 0;
-
-  const flaggedPositions: InsightsData['metrics']['flaggedPositions'] = [];
-  for (const pos of ALL) {
-    const actual = laborByPosition[pos] || 0;
-    const projected = targetByPosition[pos] || 0;
-    const varianceDollars = actual - projected;
-    const variancePct = revenue > 0 ? Math.abs(varianceDollars) / revenue : 0;
-    if (variancePct > 0.015) {
-      flaggedPositions.push({ position: pos, actual, projected, varianceDollars, variancePct });
-    }
-  }
-
-  // Build simple narrative sections
-  const revenueSummary = `${formatDatePretty(date)} generated ${fmt(revenue)} in net sales vs budget of ${fmt(budgetRevenue)} (${revVsBudgetDollars >= 0 ? '+' : ''}${fmt(revVsBudgetDollars)}) and forecast of ${fmt(forecastRevenue)}.`;
-  const coversSummary = `Covers totaled ${covers.toLocaleString()} with an average check of ${fmt(avgCheck)}.`;
-  const salesMix = (salesMixRows && salesMixRows.length > 0)
-    ? salesMixRows.map((r: any) => `${r.category}: ${fmt(r.revenue)} (${pct(r.pct_of_total)})`).join(', ')
-    : 'Sales mix data not yet available.';
-  const pmixMovers = (pmixRows && pmixRows.length > 0)
-    ? 'Top sellers: ' + pmixRows.slice(0, 5).map((r: any) => `${r.item_name} (qty ${r.quantity}, ${fmt(r.revenue)})`).join('; ')
-    : 'PMIX data not yet available.';
-
-  const laborVariance = flaggedPositions.length === 0
-    ? 'All positions within 1.5% of projected targets.'
-    : flaggedPositions.map(fp => `${fp.position}: ${fmt(fp.actual)} vs ${fmt(fp.projected)} (${fp.varianceDollars > 0 ? 'over' : 'under'} ${fmt(Math.abs(fp.varianceDollars))})`).join('; ');
-
-  let laborSavings = `Total labor ${pct(laborPctOfRevenue)} of revenue (target ${pct(targetLaborPct)}). `;
-  if (laborPctOfRevenue > targetLaborPct) {
-    const savingsDollars = (laborPctOfRevenue - targetLaborPct) * revenue;
-    laborSavings += `Potential savings of ${fmt(savingsDollars)}.`;
-  } else {
-    laborSavings += 'Labor under target — efficient scheduling.';
-  }
-
-  return {
-    date,
-    locationName,
-    sections: {
-      revenueSummary,
-      coversSummary,
-      compsAndDiscounts: '',
-      salesMix,
-      pmixMovers,
-      laborVariance,
-      laborSavings,
-      hourlyEfficiency: '',
-    },
-    metrics: {
-      revenue,
-      budgetRevenue,
-      forecastRevenue,
-      covers,
-      avgCheck,
-      totalLaborActual,
-      totalLaborProjected,
-      laborPctOfRevenue,
-      targetLaborPct,
-      revVsBudgetDollars,
-      revVsBudgetPct,
-      revVsForecastDollars,
-      revVsForecastPct,
-      flaggedPositions,
-      salesMixData: salesMixRows || [],
-      pmixData: pmixRows || [],
-      weather: null,
-    },
-  };
-}

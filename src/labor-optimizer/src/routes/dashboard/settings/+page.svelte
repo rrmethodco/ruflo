@@ -27,7 +27,23 @@
   let addingRecipient = $state(false);
   let recipientMessage = $state('');
 
-  const ADMIN_EMAILS = ['rr@methodco.com'];
+  // Staffing Constraints state
+  let staffingConstraints = $state<any[]>([]);
+  let loadingConstraints = $state(false);
+  let savingConstraints = $state(false);
+  let constraintMessage = $state('');
+
+  // Tripleseat state
+  let tsConfig = $state<any>(null);
+  let tsConsumerKey = $state('');
+  let tsConsumerSecret = $state('');
+  let tsSiteId = $state('');
+  let tsEnabled = $state(true);
+  let savingTs = $state(false);
+  let testingTs = $state(false);
+  let tsMessage = $state('');
+
+  // Role-based access — admin check via API
   const positions = ['Server','Bartender','Host','Barista','Support','Training','Line Cooks','Prep Cooks','Pastry','Dishwashers','EXCLUDE'];
   const roles = ['manager', 'director', 'admin'];
 
@@ -41,8 +57,76 @@
     jobMappings = (await mapRes.json()).mappings || [];
     thresholds = (await thrRes.json()).thresholds || [];
     dolceMappings = (await dolceRes.json()).mappings || [];
-    // Also load email recipients
-    await loadEmailRecipients();
+    // Also load email recipients, staffing constraints, and tripleseat config
+    await Promise.all([loadEmailRecipients(), loadStaffingConstraints(), loadTripleseatConfig()]);
+  }
+
+  async function loadStaffingConstraints() {
+    if (!locationId) return;
+    loadingConstraints = true;
+    try {
+      const res = await fetch(`/api/v1/staffing-constraints?locationId=${locationId}`);
+      const data = await res.json();
+      staffingConstraints = data.constraints || [];
+    } catch (err: any) {
+      staffingConstraints = [];
+    }
+    loadingConstraints = false;
+  }
+
+  async function loadTripleseatConfig() {
+    if (!locationId) return;
+    try {
+      const res = await fetch(`/api/v1/admin/tripleseat-config?locationId=${locationId}`);
+      const data = await res.json();
+      const cfg = data.configs?.[0];
+      if (cfg) {
+        tsConfig = cfg;
+        tsConsumerKey = cfg.consumer_key || '';
+        tsConsumerSecret = cfg.consumer_secret || '';
+        tsSiteId = cfg.tripleseat_site_id || '';
+        tsEnabled = cfg.enabled !== false;
+      } else {
+        tsConfig = null;
+        tsConsumerKey = '';
+        tsConsumerSecret = '';
+        tsSiteId = '';
+        tsEnabled = true;
+      }
+    } catch {
+      tsConfig = null;
+    }
+  }
+
+  async function saveStaffingConstraints() {
+    if (!locationId || staffingConstraints.length === 0) return;
+    savingConstraints = true;
+    constraintMessage = '';
+    try {
+      const res = await fetch('/api/v1/staffing-constraints', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          locationId,
+          constraints: staffingConstraints.map((c: any) => ({
+            position: c.position,
+            minHeadcount: Number(c.minHeadcount),
+            maxHeadcount: Number(c.maxHeadcount),
+            minHoursPerShift: Number(c.minHoursPerShift),
+            maxHoursPerShift: Number(c.maxHoursPerShift),
+          })),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        constraintMessage = `Saved ${data.saved} constraints.` + (data.errors?.length ? ` Errors: ${data.errors.join(', ')}` : '');
+      } else {
+        constraintMessage = 'Error: ' + (data.error || 'Failed to save');
+      }
+    } catch (err: any) {
+      constraintMessage = 'Error: ' + err.message;
+    }
+    savingConstraints = false;
   }
 
   async function loadEmailRecipients() {
@@ -132,10 +216,31 @@
     savingDolce = false;
   }
 
+  let toastSyncing = $state(false);
+  let toastSyncMessage = $state('');
+
   async function triggerSync() {
-    const res = await fetch('/api/cron/toast-sync');
-    const data = await res.json();
-    alert('Sync: ' + JSON.stringify(data.results?.map((r: any) => `${r.location}: ${r.status}`)));
+    toastSyncing = true;
+    toastSyncMessage = 'Triggering sync...';
+    try {
+      const supabase = getClientSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      const res = await fetch('/api/v1/admin/trigger-sync', {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const results = data.results?.map((r: any) => `${r.location}: ${r.status}`).join(', ');
+        toastSyncMessage = results ? `Done — ${results}` : 'Sync completed';
+      } else {
+        toastSyncMessage = data.error || `Error ${res.status}`;
+      }
+    } catch (err: any) {
+      toastSyncMessage = 'Error: ' + err.message;
+    }
+    toastSyncing = false;
   }
 
   async function uploadResyCsv(file: File) {
@@ -174,14 +279,27 @@
 
   $effect(() => {
     const supabase = getClientSupabase();
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       const email = session?.user?.email ?? null;
-      isAdmin = !!email && ADMIN_EMAILS.includes(email);
+      if (email) {
+        try {
+          const _roleCtrl = new AbortController(); setTimeout(() => _roleCtrl.abort(), 8000); const res = await fetch(`/api/v1/auth/role?email=${encodeURIComponent(email)}`, { signal: _roleCtrl.signal });
+          if (res.ok) {
+            const data = await res.json();
+            isAdmin = data.permissions?.admin ?? false;
+          }
+        } catch { isAdmin = false; }
+      }
       authChecked = true;
       if (!isAdmin) { goto('/dashboard'); return; }
-      fetch('/api/v1/locations').then(r => r.json()).then(d => {
+      const locUrl = email ? `/api/v1/auth/my-locations?email=${encodeURIComponent(email)}` : '/api/v1/locations';
+      fetch(locUrl).then(r => r.json()).then(d => {
         locations = d.locations || d || [];
-        if (locations.length > 0) { locationId = locations[0].id; loadSettings(); }
+        if (locations.length > 0) {
+          const saved = localStorage.getItem('helixo_selected_location');
+          locationId = (saved && locations.some((l: any) => l.id === saved)) ? saved : locations[0].id;
+          loadSettings();
+        }
       });
     });
   });
@@ -190,12 +308,12 @@
 <div class="p-3 md:p-4">
   <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
     <h1 class="text-xl md:text-2xl font-bold text-[#1a1a1a]">Settings</h1>
-    <select bind:value={locationId} onchange={loadSettings} class="leo-select">
+    <select bind:value={locationId} onchange={() => { localStorage.setItem('helixo_selected_location', locationId); loadSettings(); }} class="leo-select">
       {#each locations as loc}<option value={loc.id}>{loc.name}</option>{/each}
     </select>
   </div>
   <div class="flex gap-2 mb-6 flex-wrap">
-    {#each [['mapping','Toast Job Mapping'],['thresholds','Labor Thresholds'],['sync','Toast Sync'],['dolce','Dolce Mapping'],['resy','Resy Upload'],['email','Email Recipients']] as [key, label]}
+    {#each [['mapping','Toast Job Mapping'],['thresholds','Labor Thresholds'],['staffing','Staffing Limits'],['sync','Toast Sync'],['dolce','Dolce Mapping'],['resy','Resy Upload'],['email','Email Recipients'],['tripleseat','Tripleseat']] as [key, label]}
       <button onclick={() => activeTab = key}
         class="px-4 py-2 rounded text-sm font-medium transition-colors"
         style="{activeTab === key ? 'background: #1e3a5f; color: white;' : 'background: white; border: 1px solid #e5e7eb; color: #374151;'}">
@@ -245,11 +363,69 @@
     </table>
     {:else}<p class="text-[#9ca3af] text-sm">No thresholds configured.</p>{/if}
   </div>
+  {:else if activeTab === 'staffing'}
+  <div class="leo-card p-6">
+    <h2 class="leo-section-title mb-2">Staffing Limits</h2>
+    <p class="text-[#6b7280] text-sm mb-4">Set minimum and maximum headcount per position for this location. The scheduling engine will enforce these bounds when generating shift assignments.</p>
+    {#if loadingConstraints}
+      <p class="text-[#9ca3af] text-sm">Loading constraints...</p>
+    {:else if staffingConstraints.length > 0}
+      <div class="overflow-x-auto">
+        <table class="w-full leo-table">
+          <thead>
+            <tr>
+              <th class="leo-th" style="text-align: left;">Position</th>
+              <th class="leo-th" style="text-align: center;">Min Headcount</th>
+              <th class="leo-th" style="text-align: center;">Max Headcount</th>
+              <th class="leo-th" style="text-align: center;">Min Hrs/Shift</th>
+              <th class="leo-th" style="text-align: center;">Max Hrs/Shift</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each staffingConstraints as c, i}
+              <tr>
+                <td class="leo-td" style="text-align: left; font-weight: 500;">{c.position}</td>
+                <td class="leo-td" style="text-align: center;">
+                  <input type="number" min="0" max="50" bind:value={staffingConstraints[i].minHeadcount}
+                    class="leo-input w-20 text-center" />
+                </td>
+                <td class="leo-td" style="text-align: center;">
+                  <input type="number" min="0" max="50" bind:value={staffingConstraints[i].maxHeadcount}
+                    class="leo-input w-20 text-center" />
+                </td>
+                <td class="leo-td" style="text-align: center;">
+                  <input type="number" min="1" max="12" step="0.5" bind:value={staffingConstraints[i].minHoursPerShift}
+                    class="leo-input w-20 text-center" />
+                </td>
+                <td class="leo-td" style="text-align: center;">
+                  <input type="number" min="1" max="16" step="0.5" bind:value={staffingConstraints[i].maxHoursPerShift}
+                    class="leo-input w-20 text-center" />
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </div>
+      <button onclick={saveStaffingConstraints} disabled={savingConstraints} class="leo-btn mt-4">
+        {savingConstraints ? 'Saving...' : 'Save Staffing Limits'}
+      </button>
+    {:else}
+      <p class="text-[#9ca3af] text-sm">No positions configured. Select a location to load defaults.</p>
+    {/if}
+    {#if constraintMessage}
+      <div class="mt-3 p-3 rounded-lg text-sm" style="background: {constraintMessage.includes('Error') ? '#fef2f2; color: #dc2626;' : '#f0fdf4; color: #16a34a;'}">
+        {constraintMessage}
+      </div>
+    {/if}
+  </div>
   {:else if activeTab === 'sync'}
   <div class="leo-card p-6">
     <h2 class="leo-section-title mb-4">Toast Sync</h2>
-    <p class="text-[#6b7280] text-sm mb-4">Auto sync: 5:00 AM EST daily.</p>
-    <button onclick={triggerSync} class="leo-btn">Sync Now</button>
+    <p class="text-[#6b7280] text-sm mb-4">Auto sync: 5:00 AM EST and 10:00 PM EST daily for all locations.</p>
+    <div class="flex items-center gap-4">
+      <button onclick={triggerSync} disabled={toastSyncing} class="leo-btn">{toastSyncing ? 'Syncing...' : 'Sync Now'}</button>
+      {#if toastSyncMessage}<span class="text-sm text-[#6b7280]">{toastSyncMessage}</span>{/if}
+    </div>
   </div>
   {:else if activeTab === 'dolce'}
   <div class="space-y-6">
@@ -439,6 +615,105 @@
       >
         {addingRecipient ? 'Adding...' : 'Add Recipient'}
       </button>
+    </div>
+  </div>
+  {:else if activeTab === 'tripleseat'}
+  <div class="leo-card p-6">
+    <h2 class="leo-section-title mb-2">Tripleseat Integration</h2>
+    <p class="text-[#6b7280] text-sm mb-4">Connect Tripleseat to sync private dining & events data for the PACE report.</p>
+
+    <div class="space-y-4">
+      <div>
+        <label class="block text-xs text-[#6b7280] mb-1">Consumer Key *</label>
+        <input type="text" bind:value={tsConsumerKey} class="leo-input w-full" placeholder="vS81k59x..." />
+      </div>
+      <div>
+        <label class="block text-xs text-[#6b7280] mb-1">Consumer Secret *</label>
+        <input type="password" bind:value={tsConsumerSecret} class="leo-input w-full" placeholder="WkoHlfGI..." />
+      </div>
+      <div>
+        <label class="block text-xs text-[#6b7280] mb-1">Site ID (optional)</label>
+        <input type="text" bind:value={tsSiteId} class="leo-input w-full" placeholder="Auto-detected if blank" />
+      </div>
+      <div class="flex items-center gap-3">
+        <label class="text-sm text-[#374151]">Enabled</label>
+        <button
+          onclick={() => tsEnabled = !tsEnabled}
+          class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
+          style="background: {tsEnabled ? '#1e3a5f' : '#d1d5db'};"
+        >
+          <span
+            class="inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform"
+            style="transform: translateX({tsEnabled ? '18px' : '3px'});"
+          ></span>
+        </button>
+      </div>
+
+      {#if tsConfig?.last_synced_at}
+        <div class="text-xs text-[#6b7280]">
+          Last synced: {new Date(tsConfig.last_synced_at).toLocaleString()}
+        </div>
+      {/if}
+
+      {#if tsMessage}
+        <div class="p-3 rounded-lg text-sm" style="background: {tsMessage.includes('Error') || tsMessage.includes('fail') ? '#fef2f2; color: #dc2626;' : '#f0fdf4; color: #16a34a;'}">
+          {tsMessage}
+        </div>
+      {/if}
+
+      <div class="flex gap-3 pt-2">
+        <button
+          onclick={async () => {
+            testingTs = true;
+            tsMessage = '';
+            try {
+              const r = await fetch('/api/v1/admin/tripleseat-config?action=test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ consumerKey: tsConsumerKey, consumerSecret: tsConsumerSecret }),
+              });
+              const d = await r.json();
+              tsMessage = d.ok ? `Connected! Found ${d.sites} site(s).` : `Error: ${d.error}`;
+            } catch (e) { tsMessage = 'Error: Network error'; }
+            finally { testingTs = false; }
+          }}
+          disabled={testingTs || !tsConsumerKey || !tsConsumerSecret}
+          class="px-4 py-2 text-sm border border-[#d1d5db] rounded-lg hover:bg-[#f9fafb] disabled:opacity-50"
+        >
+          {testingTs ? 'Testing...' : 'Test Connection'}
+        </button>
+        <button
+          onclick={async () => {
+            savingTs = true;
+            tsMessage = '';
+            try {
+              const r = await fetch('/api/v1/admin/tripleseat-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  locationId,
+                  consumerKey: tsConsumerKey,
+                  consumerSecret: tsConsumerSecret,
+                  tripleseatSiteId: tsSiteId || null,
+                  enabled: tsEnabled,
+                }),
+              });
+              const d = await r.json();
+              if (d.ok) {
+                tsConfig = d.config;
+                tsMessage = 'Saved successfully!';
+              } else {
+                tsMessage = `Error: ${d.error}`;
+              }
+            } catch (e) { tsMessage = 'Error: Network error'; }
+            finally { savingTs = false; }
+          }}
+          disabled={savingTs || !tsConsumerKey || !tsConsumerSecret}
+          class="px-4 py-2 text-sm bg-[#1e3a5f] text-white rounded-lg hover:bg-[#15304f] disabled:opacity-50"
+        >
+          {savingTs ? 'Saving...' : 'Save Configuration'}
+        </button>
+      </div>
     </div>
   </div>
   {/if}

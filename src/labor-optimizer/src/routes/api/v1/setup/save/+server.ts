@@ -14,7 +14,7 @@ export const POST: RequestHandler = async ({ request }) => {
     toast_client_id: clientId,
     toast_client_secret: clientSecret,
     timezone: 'America/New_York',
-    labor_budget_pct: 0.1800,
+    labor_budget_pct: 0.2800,
     period_start_date: p1StartDate,
     is_active: true,
   }).select().single();

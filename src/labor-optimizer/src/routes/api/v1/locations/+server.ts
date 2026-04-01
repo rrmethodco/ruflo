@@ -5,7 +5,7 @@ export const GET: RequestHandler = async () => {
   const sb = getSupabase();
   const { data: locations, error } = await sb
     .from('locations')
-    .select('id, name, type, toast_guid, timezone, labor_budget_pct, is_active')
+    .select('id, name, type, city, toast_guid, timezone, labor_budget_pct, is_active')
     .eq('is_active', true)
     .order('name');
 

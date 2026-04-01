@@ -5,7 +5,7 @@
   // ---------------------------------------------------------------------------
   // State
   // ---------------------------------------------------------------------------
-  let locationId = $state('f36fdb18-a97b-48af-8456-7374dea4b0f9');
+  let locationId = $state('');
   let locations = $state<any[]>([]);
   let questionnaire = $state<any>(null);
   let loading = $state(true);
@@ -18,7 +18,7 @@
   let userEmail = $state('');
   let adminNotes = $state('');
 
-  const ADMIN_EMAILS = ['rr@methodco.com'];
+  // Role-based access — admin check via API
 
   // ---------------------------------------------------------------------------
   // Questions definition
@@ -270,17 +270,27 @@
   // ---------------------------------------------------------------------------
   $effect(() => {
     const supabase = getClientSupabase();
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       const email = session?.user?.email ?? '';
       userEmail = email;
-      isAdmin = !!email && ADMIN_EMAILS.includes(email);
+      if (email) {
+        try {
+          const _roleCtrl = new AbortController(); setTimeout(() => _roleCtrl.abort(), 8000); const res = await fetch(`/api/v1/auth/role?email=${encodeURIComponent(email)}`, { signal: _roleCtrl.signal });
+          if (res.ok) {
+            const data = await res.json();
+            isAdmin = data.permissions?.admin ?? false;
+          }
+        } catch { isAdmin = false; }
+      }
       authChecked = true;
       if (!email) { goto('/login'); return; }
 
-      fetch('/api/v1/locations').then(r => r.json()).then(d => {
+      const locUrl = email ? `/api/v1/auth/my-locations?email=${encodeURIComponent(email)}` : '/api/v1/locations';
+      fetch(locUrl).then(r => r.json()).then(d => {
         locations = d.locations || d || [];
         if (locations.length > 0 && !locationId) {
-          locationId = locations[0].id;
+          const saved = localStorage.getItem('helixo_selected_location');
+          locationId = (saved && locations.some((l: any) => l.id === saved)) ? saved : locations[0].id;
         }
         loadQuestionnaire();
       });
@@ -311,7 +321,7 @@
           {questionnaire.status}
         </span>
       {/if}
-      <select bind:value={locationId} onchange={loadQuestionnaire} class="leo-select">
+      <select bind:value={locationId} onchange={() => { localStorage.setItem('helixo_selected_location', locationId); loadQuestionnaire(); }} class="leo-select">
         {#each locations as loc}<option value={loc.id}>{loc.name}</option>{/each}
       </select>
     </div>

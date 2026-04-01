@@ -1,6 +1,9 @@
 <script lang="ts">
+  import { getClientSupabase } from '$lib/supabase-client';
+
   let locationId = $state('');
   let locations = $state<{ id: string; name: string }[]>([]);
+  let singleLocation = $state(false);
   let selectedDate = $state('');
   let loading = $state(false);
   let insights = $state<any>(null);
@@ -61,14 +64,21 @@
   }
 
   $effect(() => {
-    fetch('/api/v1/locations')
-      .then((r) => r.json())
-      .then((d) => {
-        locations = d.locations || d || [];
-        if (locations.length > 0) {
-          locationId = locations[0].id;
-        }
-      });
+    const supabase = getClientSupabase();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const email = session?.user?.email;
+      const url = email ? `/api/v1/auth/my-locations?email=${encodeURIComponent(email)}` : '/api/v1/locations';
+      fetch(url)
+        .then((r) => r.json())
+        .then((d) => {
+          locations = d.locations || d || [];
+          singleLocation = locations.length === 1;
+          if (locations.length > 0) {
+            const saved = localStorage.getItem('helixo_selected_location');
+            locationId = (saved && locations.some((l: any) => l.id === saved)) ? saved : locations[0].id;
+          }
+        });
+    });
   });
 </script>
 
@@ -82,11 +92,15 @@
   <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 mb-6 sm:items-end flex-wrap">
     <div>
       <label class="text-xs text-[#6b7280] uppercase tracking-wide block mb-1">Location</label>
-      <select bind:value={locationId} class="leo-select">
-        {#each locations as loc}
-          <option value={loc.id}>{loc.name}</option>
-        {/each}
-      </select>
+      {#if singleLocation}
+        <span class="text-sm font-medium text-[#374151] py-2">{locations[0]?.name}</span>
+      {:else}
+        <select bind:value={locationId} onchange={() => localStorage.setItem('helixo_selected_location', locationId)} class="leo-select">
+          {#each locations as loc}
+            <option value={loc.id}>{loc.name}</option>
+          {/each}
+        </select>
+      {/if}
     </div>
     <div>
       <label class="text-xs text-[#6b7280] uppercase tracking-wide block mb-1">Date</label>

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { getClientSupabase } from '$lib/supabase-client';
+
   let locationId = $state('');
   let locations = $state<{id: string; name: string}[]>([]);
   let entries = $state<any[]>([]);
@@ -10,7 +12,7 @@
   const positions = ['', 'Server', 'Bartender', 'Host', 'Barista', 'Support', 'Training', 'Line Cooks', 'Prep Cooks', 'Pastry', 'Dishwashers'];
 
   function detectCurrentPeriodAndWeek(): { period: number; week: number } {
-    const p1Start = new Date('2025-12-29');
+    const p1Start = new Date('2025-12-29T12:00:00');
     const today = new Date();
     const daysSinceP1 = Math.floor((today.getTime() - p1Start.getTime()) / (1000 * 60 * 60 * 24));
     const period = Math.min(13, Math.max(1, Math.floor(daysSinceP1 / 28) + 1));
@@ -24,7 +26,7 @@
   let weekNumber = $state(detected.week);
 
   function getDateRange(period: number, week: number): { startDate: string; endDate: string } {
-    const p1Start = new Date('2025-12-29');
+    const p1Start = new Date('2025-12-29T12:00:00');
     const periodStart = new Date(p1Start.getTime() + (period - 1) * 28 * 86400000);
     if (week === 0) {
       const periodEnd = new Date(periodStart.getTime() + 27 * 86400000);
@@ -64,9 +66,14 @@
   }
 
   $effect(() => {
-    fetch('/api/v1/locations').then(r => r.json()).then(d => {
-      locations = d.locations || d || [];
-      if (locations.length > 0) { locationId = locations[0].id; loadEntries(); }
+    const supabase = getClientSupabase();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const email = session?.user?.email;
+      const url = email ? `/api/v1/auth/my-locations?email=${encodeURIComponent(email)}` : '/api/v1/locations';
+      fetch(url).then(r => r.json()).then(d => {
+        locations = d.locations || d || [];
+        if (locations.length > 0) { locationId = locations[0].id; loadEntries(); }
+      });
     });
   });
 </script>

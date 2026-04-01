@@ -9,11 +9,35 @@
 
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { getSupabase, FOH_POSITIONS, BOH_POSITIONS } from '$lib/server/supabase';
+import { getSupabase, getSupabaseService, FOH_POSITIONS, BOH_POSITIONS } from '$lib/server/supabase';
+import { canApproveSchedule, isValidRole, getHighestRole, type UserRole } from '$lib/roles';
+import { createNotification } from '$lib/server/notifications';
 
-const ADMIN_EMAILS = ['rr@methodco.com'];
+/** Resolve user's highest role from DB. */
+async function resolveUserRole(email: string): Promise<UserRole> {
+  const sb = getSupabaseService();
+  const roles: UserRole[] = [];
+
+  const { data: gm } = await sb
+    .from('user_group_members')
+    .select('role')
+    .eq('user_email', email);
+  for (const r of gm || []) {
+    if (r.role && isValidRole(r.role)) roles.push(r.role as UserRole);
+  }
+
+  const { data: lu } = await sb
+    .from('location_users')
+    .select('role')
+    .eq('user_email', email);
+  for (const r of lu || []) {
+    if (r.role && isValidRole(r.role)) roles.push(r.role as UserRole);
+  }
+
+  return getHighestRole(roles);
+}
 const RESEND_API_URL = 'https://api.resend.com/emails';
-const HELIXO_FROM = 'HELIXO <onboarding@resend.dev>';
+const HELIXO_FROM = process.env.RESEND_FROM_EMAIL || 'HELIXO <notifications@helixokpi.com>';
 
 /* ------------------------------------------------------------------ */
 /*  Email helpers                                                      */
@@ -175,10 +199,17 @@ export const GET: RequestHandler = async ({ url }) => {
   // Fetch projected labor targets for the week
   const { data: targets } = await sb
     .from('daily_labor_targets')
-    .select('business_date, position, projected_labor_dollars')
+    .select('business_date, position, projected_labor_dollars, threshold_bracket_used, week_forecast_total')
     .eq('location_id', locationId)
     .gte('business_date', weekStartDate)
     .lte('business_date', weekEndDate);
+
+  const targetTotal = (targets || []).reduce((s, t) => s + (t.projected_labor_dollars || 0), 0);
+  console.log(`[schedule-approval] GET: location=${locationId}, week=${weekStartDate}-${weekEndDate}, targetRows=${(targets || []).length}, totalProjected=$${Math.round(targetTotal)}, bracket=${(targets || [])[0]?.threshold_bracket_used || 'none'}, weekForecastTotal=${(targets || [])[0]?.week_forecast_total || 0}`);
+
+  // Determine if projections are estimated (partial week) or confirmed (full week)
+  const sampleTarget = (targets || [])[0];
+  const isEstimated = sampleTarget?.threshold_bracket_used?.includes('(estimated)') ?? false;
 
   // Fetch scheduled labor for the week
   const { data: scheduled } = await sb
@@ -187,6 +218,28 @@ export const GET: RequestHandler = async ({ url }) => {
     .eq('location_id', locationId)
     .gte('business_date', weekStartDate)
     .lte('business_date', weekEndDate);
+
+  // Compute avg hourly rate per position from last 30 days of actual labor
+  const thirtyDaysAgo = new Date(wsDate);
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  const { data: laborHistory } = await sb
+    .from('daily_labor')
+    .select('mapped_position, labor_dollars, regular_hours, overtime_hours')
+    .eq('location_id', locationId)
+    .gte('business_date', thirtyDaysAgo.toISOString().split('T')[0])
+    .lte('business_date', weekEndDate);
+
+  const avgRateMap = new Map<string, number>();
+  const rateAccum: Record<string, { dollars: number; hours: number }> = {};
+  for (const r of laborHistory || []) {
+    if (!r.mapped_position) continue;
+    if (!rateAccum[r.mapped_position]) rateAccum[r.mapped_position] = { dollars: 0, hours: 0 };
+    rateAccum[r.mapped_position].dollars += r.labor_dollars || 0;
+    rateAccum[r.mapped_position].hours += (r.regular_hours || 0) + (r.overtime_hours || 0);
+  }
+  for (const [pos, acc] of Object.entries(rateAccum)) {
+    avgRateMap.set(pos, acc.hours > 0 ? acc.dollars / acc.hours : 15);
+  }
 
   // Build day-by-day position comparison
   const allPositions = [...FOH_POSITIONS, ...BOH_POSITIONS];
@@ -207,13 +260,18 @@ export const GET: RequestHandler = async ({ url }) => {
       const sched = dayScheduled.find(s => s.position === pos);
       const proj = target?.projected_labor_dollars || 0;
       const sch = sched?.scheduled_dollars || 0;
+      const schHrs = sched?.scheduled_hours || 0;
+      // Compute projected hours from avg hourly rate (from daily_labor last 30 days)
+      const avgRate = avgRateMap.get(pos) || 15;
+      const projHrs = avgRate > 0 ? Math.round((proj / avgRate) * 10) / 10 : 0;
       totalProjected += proj;
       totalScheduled += sch;
       return {
         position: pos,
         projected: proj,
+        projectedHours: projHrs,
         scheduled: sch,
-        scheduledHours: sched?.scheduled_hours || 0,
+        scheduledHours: schHrs,
         variance: sch - proj,
       };
     });
@@ -240,6 +298,7 @@ export const GET: RequestHandler = async ({ url }) => {
       variance,
       variancePct,
     },
+    isEstimated,
   });
 };
 
@@ -353,14 +412,24 @@ export const POST: RequestHandler = async ({ request }) => {
     .from('location_users')
     .select('user_email')
     .eq('location_id', locationId)
-    .or('role.eq.admin,role.eq.director');
+    .or('role.eq.super_admin,role.eq.admin,role.eq.director');
 
   const adminEmails = (adminUsers || []).map(u => u.user_email).filter(Boolean);
-  // Always include hardcoded admin as fallback
-  if (!adminEmails.includes('rr@methodco.com')) adminEmails.push('rr@methodco.com');
+
+  // Also check user_group_members for super_admins/directors
+  const { data: groupAdmins } = await getSupabaseService()
+    .from('user_group_members')
+    .select('user_email')
+    .or('role.eq.super_admin,role.eq.director');
+
+  for (const ga of groupAdmins || []) {
+    if (ga.user_email && !adminEmails.includes(ga.user_email)) {
+      adminEmails.push(ga.user_email);
+    }
+  }
 
   if (adminEmails.length > 0) {
-    const subject = `HELIXO | Schedule Submitted \u2014 ${locationName} \u2014 Week of ${weekLabel}`;
+    const subject = `HELIXO | Schedule Submitted | ${locationName} | Week of ${weekLabel}`;
     const html = buildSubmittedEmailHtml(
       locationName, weekLabel,
       fohProjected, fohScheduled,
@@ -368,6 +437,17 @@ export const POST: RequestHandler = async ({ request }) => {
       totalProjected, totalScheduled,
     );
     await sendEmail(adminEmails, subject, html);
+
+    // In-app notifications for all admin/director recipients
+    await createNotification(adminEmails.map(email => ({
+      userEmail: email,
+      type: 'schedule_submitted' as const,
+      title: `Schedule submitted: ${locationName}`,
+      body: `Week of ${weekLabel} — ${fmt$(totalScheduled)} scheduled vs ${fmt$(totalProjected)} projected`,
+      link: '/dashboard/schedule-approval',
+      locationId,
+      metadata: { weekStartDate, totalScheduled, totalProjected },
+    })));
   }
 
   return json({ submitted: true, schedule: data });
@@ -385,18 +465,24 @@ export const PUT: RequestHandler = async ({ request }) => {
     return json({ error: 'locationId, weekStartDate, and action are required' }, { status: 400 });
   }
 
-  if (!['approve', 'deny', 'revision_requested'].includes(action)) {
-    return json({ error: 'action must be approve, deny, or revision_requested' }, { status: 400 });
+  if (!['approve', 'deny', 'revision_requested', 'push_to_dolce'].includes(action)) {
+    return json({ error: 'action must be approve, deny, revision_requested, or push_to_dolce' }, { status: 400 });
   }
 
-  if (!reviewedBy || !ADMIN_EMAILS.includes(reviewedBy)) {
-    return json({ error: 'Only admins can approve or deny schedules.' }, { status: 403 });
+  if (!reviewedBy) {
+    return json({ error: 'reviewedBy is required' }, { status: 400 });
+  }
+
+  const reviewerRole = await resolveUserRole(reviewedBy);
+  if (!canApproveSchedule(reviewerRole)) {
+    return json({ error: 'Only super admins and directors can approve or deny schedules.' }, { status: 403 });
   }
 
   const statusMap: Record<string, string> = {
     approve: 'approved',
     deny: 'denied',
     revision_requested: 'revision_requested',
+    push_to_dolce: 'pushing_to_dolce',
   };
 
   const now = new Date().toISOString();
@@ -441,9 +527,28 @@ export const PUT: RequestHandler = async ({ request }) => {
     const locationName = location?.name || locationId;
     const weekLabel = formatWeekDate(weekStartDate);
     const statusLabel = newStatus.charAt(0).toUpperCase() + newStatus.slice(1);
-    const subject = `HELIXO | Schedule ${statusLabel} \u2014 ${locationName} \u2014 Week of ${weekLabel}`;
+    const subject = `HELIXO | Schedule ${statusLabel} | ${locationName} | Week of ${weekLabel}`;
     const html = buildDecisionEmailHtml(locationName, weekLabel, newStatus, reviewNotes || null);
     await sendEmail([submitterEmail], subject, html);
+
+    // In-app notification for submitter
+    const notifType = action === 'approve' ? 'schedule_approved'
+      : action === 'deny' ? 'schedule_denied'
+      : 'schedule_revision';
+    const notifTitle = action === 'approve'
+      ? `Schedule approved: ${locationName}`
+      : action === 'deny'
+      ? `Schedule denied: ${locationName}`
+      : `Revision requested: ${locationName}`;
+    await createNotification({
+      userEmail: submitterEmail,
+      type: notifType as any,
+      title: notifTitle,
+      body: reviewNotes ? `Notes: ${reviewNotes}` : `Week of ${formatWeekDate(weekStartDate)}`,
+      link: '/dashboard/schedule-approval',
+      locationId,
+      metadata: { weekStartDate, action },
+    });
   }
 
   return json({ updated: true, schedule: data });

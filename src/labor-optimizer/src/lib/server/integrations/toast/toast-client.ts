@@ -73,6 +73,18 @@ export interface DaySummary {
 	totalComps: number;
 	salesMix: SalesMixEntry[];
 	pmix: PmixEntry[];
+	/** Hourly sales computed in the same order-fetch pass — no extra API calls */
+	hourlySales: HourlySalesEntry[];
+	/** Dining metrics computed in the same order-fetch pass — no extra API calls */
+	diningMetrics: DiningMetrics;
+}
+
+export interface DiningMetrics {
+	avgDwellMinutes: number;
+	avgTurnsPerSeat: number;
+	totalOrders: number;
+	avgPartySize: number;
+	peakHourTurns: number;
 }
 
 export class ToastClient {
@@ -80,6 +92,8 @@ export class ToastClient {
 	private accessToken: string | null = null;
 	private tokenExpiry: number = 0;
 	private menuCategoryCache: Map<string, string> | null = null;
+	/** Maps revenue center GUID -> name (fetched from config API, cached per instance) */
+	private rcGuidToNameCache: Map<string, string> | null = null;
 
 	constructor(config: ToastConfig) {
 		this.config = {
@@ -90,41 +104,109 @@ export class ToastClient {
 
 	private authResponse: any = null;
 
+	/**
+	 * Fetch revenue center GUID -> name mapping from Toast config API.
+	 * Cached per client instance since revenue centers don't change during a sync.
+	 * Toast's orders API only returns revenueCenter.guid (no name), so we need
+	 * this lookup to match against human-readable filter names.
+	 */
+	async getRevenueCenterMap(): Promise<Map<string, string>> {
+		if (this.rcGuidToNameCache) return this.rcGuidToNameCache;
+		const map = new Map<string, string>();
+		try {
+			const data = await this.request<any[]>('/config/v2/revenueCenters');
+			const centers = Array.isArray(data) ? data : [];
+			for (const rc of centers) {
+				if (rc.guid && rc.name) {
+					map.set(rc.guid, rc.name);
+				}
+			}
+		} catch (err) {
+			console.warn('[Toast] Failed to fetch revenue centers from config API:', err);
+		}
+		this.rcGuidToNameCache = map;
+		return map;
+	}
+
+	/**
+	 * Resolve a revenue center object (from order or check) to its name.
+	 * Toast orders only include { guid, entityType } — the name must be
+	 * looked up from the config API cache.
+	 */
+	private resolveRcName(rc: any, rcMap: Map<string, string>): string {
+		if (!rc) return '';
+		// Prefer explicit name if present (rare in orders API, but possible)
+		if (rc.name) return rc.name;
+		// Look up GUID in config cache
+		if (rc.guid && rcMap.has(rc.guid)) return rcMap.get(rc.guid)!;
+		return '';
+	}
+
+	/**
+	 * Filter an order's checks to only those whose revenueCenter.name matches
+	 * the filter list (already lowercased). The revenue center can be on the
+	 * check itself or inherited from the order level.
+	 *
+	 * Revenue center names are resolved via the config API cache since Toast's
+	 * orders API only returns GUIDs without names.
+	 */
+	private filterChecksByRevenueCenter(order: any, rcFilterLower: string[], rcMap: Map<string, string>): any[] {
+		const checks = order.checks;
+		if (!checks || !Array.isArray(checks)) return [];
+
+		// Order-level revenue center (fallback when check doesn't have one)
+		const orderRcName = this.resolveRcName(order.revenueCenter, rcMap).toLowerCase();
+
+		return checks.filter((check: any) => {
+			const checkRcName = this.resolveRcName(check.revenueCenter, rcMap).toLowerCase();
+			const rcName = checkRcName || orderRcName;
+			if (!rcName) return false;
+			return rcFilterLower.some(f => rcName === f);
+		});
+	}
+
 	/** Authenticate with Toast API using client credentials */
 	private async authenticate(): Promise<string> {
 		if (this.accessToken && Date.now() < this.tokenExpiry) {
 			return this.accessToken;
 		}
 
-		const response = await fetch(
-			`${this.config.baseUrl}/authentication/v1/authentication/login`,
-			{
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({
-					clientId: this.config.clientId,
-					clientSecret: this.config.clientSecret,
-					userAccessType: 'TOAST_MACHINE_CLIENT',
-				}),
-			},
-		);
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), 30000);
+		try {
+			const response = await fetch(
+				`${this.config.baseUrl}/authentication/v1/authentication/login`,
+				{
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify({
+						clientId: this.config.clientId,
+						clientSecret: this.config.clientSecret,
+						userAccessType: 'TOAST_MACHINE_CLIENT',
+					}),
+					signal: controller.signal,
+				},
+			);
 
-		if (!response.ok) {
-			throw new Error(`Toast auth failed: ${response.status} ${response.statusText}`);
-		}
+			if (!response.ok) {
+				throw new Error(`Toast auth failed: ${response.status} ${response.statusText}`);
+			}
 
-		const data = await response.json();
-		this.authResponse = data;
-		this.accessToken = data.token?.accessToken || data.accessToken;
-		this.tokenExpiry = Date.now() + 3500 * 1000; // ~1 hour
-		// Extract restaurant GUID from token if available
-		if (!this.config.restaurantGuid && data.token?.restaurantGuid) {
-			this.config.restaurantGuid = data.token.restaurantGuid;
+			const data = await response.json();
+			this.authResponse = data;
+			this.accessToken = data.token?.accessToken || data.accessToken;
+			this.tokenExpiry = Date.now() + 3500 * 1000; // ~1 hour
+			// Extract restaurant GUID from token if available
+			if (!this.config.restaurantGuid && data.token?.restaurantGuid) {
+				this.config.restaurantGuid = data.token.restaurantGuid;
+			}
+			if (!this.config.restaurantGuid && data.restaurantGuid) {
+				this.config.restaurantGuid = data.restaurantGuid;
+			}
+			return this.accessToken!;
+		} finally {
+			clearTimeout(timeout);
 		}
-		if (!this.config.restaurantGuid && data.restaurantGuid) {
-			this.config.restaurantGuid = data.restaurantGuid;
-		}
-		return this.accessToken!;
 	}
 
 	/** Get raw auth response for debugging */
@@ -136,21 +218,28 @@ export class ToastClient {
 	private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
 		const token = await this.authenticate();
 
-		const response = await fetch(`${this.config.baseUrl}${path}`, {
-			...options,
-			headers: {
-				'Authorization': `Bearer ${token}`,
-				'Toast-Restaurant-External-ID': this.config.restaurantGuid,
-				'Content-Type': 'application/json',
-				...options.headers,
-			},
-		});
+		const controller = new AbortController();
+		const timeout = setTimeout(() => controller.abort(), 30000);
+		try {
+			const response = await fetch(`${this.config.baseUrl}${path}`, {
+				...options,
+				headers: {
+					'Authorization': `Bearer ${token}`,
+					'Toast-Restaurant-External-ID': this.config.restaurantGuid,
+					'Content-Type': 'application/json',
+					...options.headers,
+				},
+				signal: controller.signal,
+			});
 
-		if (!response.ok) {
-			throw new Error(`Toast API error: ${response.status} ${response.statusText}`);
+			if (!response.ok) {
+				throw new Error(`Toast API error: ${response.status} ${response.statusText}`);
+			}
+
+			return response.json();
+		} finally {
+			clearTimeout(timeout);
 		}
-
-		return response.json();
 	}
 
 	/**
@@ -179,12 +268,12 @@ export class ToastClient {
 	}
 
 	/** Get revenue summary for a business date (YYYY-MM-DD) — delegates to getDaySummary */
-	async getRevenueSummary(businessDate: string): Promise<{
+	async getRevenueSummary(businessDate: string, revenueCenterFilter?: string[]): Promise<{
 		totalRevenue: number;
 		totalCovers: number;
 		orderCount: number;
 	}> {
-		const summary = await this.getDaySummary(businessDate);
+		const summary = await this.getDaySummary(businessDate, revenueCenterFilter);
 		return {
 			totalRevenue: summary.totalRevenue,
 			totalCovers: summary.totalCovers,
@@ -195,36 +284,98 @@ export class ToastClient {
 	/**
 	 * Get full day summary: revenue, covers, sales mix, and PMIX in a single pass.
 	 * Avoids fetching order details twice for revenue + sales mix.
+	 *
+	 * @param revenueCenterFilter - When provided, only include checks whose
+	 *   revenueCenter.name matches one of these strings (case-insensitive).
+	 *   Used for locations that share a single Toast GUID (e.g. Little Wing / Vessel).
 	 */
-	async getDaySummary(businessDate: string): Promise<DaySummary> {
+	async getDaySummary(businessDate: string, revenueCenterFilter?: string[]): Promise<DaySummary> {
 		const dateCompact = businessDate.replace(/-/g, '');
-		const [orderGuids, menuCategoryMap] = await Promise.all([
+		const fetchList: [Promise<string[]>, Promise<Map<string, string>>, Promise<Map<string, string>>?] = [
 			this.request<string[]>(`/orders/v2/orders?businessDate=${dateCompact}`),
 			this.getMenuItemCategoryMap(),
-		]);
-		if (!orderGuids || orderGuids.length === 0) {
-			return { totalRevenue: 0, totalCovers: 0, orderCount: 0, totalDiscounts: 0, totalComps: 0, salesMix: [], pmix: [] };
+		];
+		// Pre-fetch RC name map when filtering is needed
+		if (revenueCenterFilter && revenueCenterFilter.length > 0) {
+			fetchList.push(this.getRevenueCenterMap());
 		}
+		const [orderGuids, menuCategoryMap, rcMap] = await Promise.all(fetchList) as [string[], Map<string, string>, Map<string, string>?];
+		if (!orderGuids || orderGuids.length === 0) {
+			return {
+				totalRevenue: 0, totalCovers: 0, orderCount: 0, totalDiscounts: 0, totalComps: 0,
+				salesMix: [], pmix: [], hourlySales: [],
+				diningMetrics: { avgDwellMinutes: 0, avgTurnsPerSeat: 0, totalOrders: 0, avgPartySize: 0, peakHourTurns: 0 },
+			};
+		}
+
+		// Lowercase revenue center filter for case-insensitive matching
+		const rcFilterLower = revenueCenterFilter?.map(r => r.toLowerCase());
 
 		let totalRevenue = 0;
 		let totalCovers = 0;
 		let totalDiscounts = 0;
 		let totalComps = 0;
+		let matchedOrderCount = 0;
 		const categoryTotals: Record<string, { revenue: number; itemCount: number }> = {};
 		const itemTotals: Record<string, { itemGuid: string | null; category: string; quantity: number; revenue: number }> = {};
 
-		for (let i = 0; i < orderGuids.length; i += 5) {
-			if (i > 0) await new Promise(r => setTimeout(r, 500));
-			const batch = orderGuids.slice(i, i + 5);
+		// Hourly + dining data collected in the same pass (avoids re-fetching orders)
+		const hourBuckets: Record<number, { revenue: number; covers: number; orderCount: number }> = {};
+		const dwellTimes: number[] = [];
+		let diningGuests = 0;
+		let diningOrdersWithGuests = 0;
+		const hourOrderCounts: Record<number, number> = {};
+
+		// Use larger batches (15 vs 5) and shorter delay (150ms vs 500ms) — 10x faster on high-volume days
+		const BATCH_SIZE = 15;
+		const BATCH_DELAY_MS = 150;
+		const MAX_RETRIES = 3;
+
+		/** Fetch a single order with retry — swallows only after all retries exhausted */
+		const fetchOrderWithRetry = async (guid: string): Promise<any> => {
+			for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+				try {
+					return await this.request<any>(`/orders/v2/orders/${guid}`);
+				} catch (err) {
+					if (attempt < MAX_RETRIES) {
+						// Exponential back-off: 300ms, 600ms
+						await new Promise(r => setTimeout(r, 300 * Math.pow(2, attempt)));
+					}
+				}
+			}
+			console.warn(`[Toast] Failed to fetch order ${guid} after ${MAX_RETRIES + 1} attempts — skipping`);
+			return null;
+		};
+
+		for (let i = 0; i < orderGuids.length; i += BATCH_SIZE) {
+			if (i > 0) await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
+			const batch = orderGuids.slice(i, i + BATCH_SIZE);
 			const orders = await Promise.all(
-				batch.map(g => this.request<any>(`/orders/v2/orders/${g}`).catch(() => null))
+				batch.map(g => fetchOrderWithRetry(g))
 			);
 			for (const o of orders) {
 				if (!o) continue;
+				// Skip only hard-deleted orders (truly removed from Toast)
+				// Do NOT skip o.voided — in Toast, voided=true means items within the order
+				// were voided, but check.amount is already the net figure after those voids
+				if (o.deleted) continue;
+
+				// Revenue center filtering: skip orders that don't match
+				if (rcFilterLower) {
+					const matchingChecks = this.filterChecksByRevenueCenter(o, rcFilterLower, rcMap || new Map());
+					if (matchingChecks.length === 0) continue;
+					// Replace checks with only the matching ones
+					o.checks = matchingChecks;
+				}
+
+				matchedOrderCount++;
 				totalCovers += o.numberOfGuests || 0;
 				if (!o.checks || !Array.isArray(o.checks)) continue;
 				for (const check of o.checks) {
-					totalRevenue += check.amount || 0;
+					// Skip only hard-deleted checks; check.amount is already net of item-level voids
+					if (check.deleted) continue;
+					if ((check.amount || 0) <= 0) continue;
+					totalRevenue += check.amount;
 					// Extract discounts and comps from check-level and selection-level
 					for (const disc of (check.appliedDiscounts || [])) {
 						const amt = disc.discountAmount || disc.amount || 0;
@@ -274,6 +425,38 @@ export class ToastClient {
 						itemTotals[itemName].revenue += selRevenue;
 					}
 				}
+
+				// ── Hourly sales (same pass) ──
+				const orderTimeStr = o.closedDate || o.openedDate;
+				if (orderTimeStr) {
+					const utcDate = new Date(orderTimeStr);
+					const estHourStr = utcDate.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false });
+					const hour = parseInt(estHourStr, 10);
+					if (!hourBuckets[hour]) hourBuckets[hour] = { revenue: 0, covers: 0, orderCount: 0 };
+					hourBuckets[hour].orderCount += 1;
+					hourBuckets[hour].covers += o.numberOfGuests || 0;
+					// Sum check amounts for this hour — apply same filters as main revenue computation
+					for (const chk of (o.checks || [])) {
+						if (chk.deleted) continue;
+						if ((chk.amount || 0) <= 0) continue;
+						hourBuckets[hour].revenue += chk.amount;
+					}
+					hourOrderCounts[hour] = (hourOrderCounts[hour] || 0) + 1;
+				}
+
+				// ── Dining metrics (same pass) ──
+				if (o.openedDate && o.closedDate) {
+					const opened = new Date(o.openedDate).getTime();
+					const closed = new Date(o.closedDate).getTime();
+					if (closed > opened) {
+						const dwellMin = (closed - opened) / (1000 * 60);
+						if (dwellMin >= 5 && dwellMin <= 300) dwellTimes.push(dwellMin);
+					}
+				}
+				if (o.numberOfGuests && o.numberOfGuests > 0) {
+					diningGuests += o.numberOfGuests;
+					diningOrdersWithGuests++;
+				}
 			}
 		}
 
@@ -304,14 +487,42 @@ export class ToastClient {
 			}))
 			.sort((a, b) => b.revenue - a.revenue);
 
+		// Build hourly sales from collected buckets
+		const hourlySales: HourlySalesEntry[] = Object.entries(hourBuckets)
+			.map(([hour, data]) => ({
+				hour: parseInt(hour, 10),
+				revenue: Math.round(data.revenue * 100) / 100,
+				covers: data.covers,
+				orderCount: data.orderCount,
+			}))
+			.sort((a, b) => a.hour - b.hour);
+
+		// Build dining metrics from collected data
+		const avgDwellMinutes = dwellTimes.length > 0
+			? dwellTimes.reduce((a, b) => a + b, 0) / dwellTimes.length : 0;
+		const avgPartySize = diningOrdersWithGuests > 0 ? diningGuests / diningOrdersWithGuests : 0;
+		const seatCapacity = 60;
+		const avgTurnsPerSeat = seatCapacity > 0 ? diningGuests / seatCapacity : 0;
+		const peakHourOrders = Math.max(0, ...Object.values(hourOrderCounts));
+		const peakHourTurns = seatCapacity > 0 ? (peakHourOrders * avgPartySize) / seatCapacity : 0;
+		const diningMetrics: DiningMetrics = {
+			avgDwellMinutes: Math.round(avgDwellMinutes * 10) / 10,
+			avgTurnsPerSeat: Math.round(avgTurnsPerSeat * 100) / 100,
+			totalOrders: rcFilterLower ? matchedOrderCount : orderGuids.length,
+			avgPartySize: Math.round(avgPartySize * 100) / 100,
+			peakHourTurns: Math.round(peakHourTurns * 100) / 100,
+		};
+
 		return {
 			totalRevenue: Math.round(totalRevenue * 100) / 100,
 			totalCovers,
-			orderCount: orderGuids.length,
+			orderCount: rcFilterLower ? matchedOrderCount : orderGuids.length,
 			totalDiscounts: Math.round(totalDiscounts * 100) / 100,
 			totalComps: Math.round(totalComps * 100) / 100,
 			salesMix,
 			pmix,
+			hourlySales,
+			diningMetrics,
 		};
 	}
 
@@ -319,14 +530,20 @@ export class ToastClient {
 	 * Get hourly sales breakdown for a business date.
 	 * Groups orders by hour of day using closedDate (or openedDate fallback),
 	 * summing revenue, covers, and order count per hour.
+	 *
+	 * @param revenueCenterFilter - When provided, only include orders whose
+	 *   checks match one of these revenue center names (case-insensitive).
 	 */
-	async getHourlySales(businessDate: string): Promise<HourlySalesEntry[]> {
+	async getHourlySales(businessDate: string, revenueCenterFilter?: string[]): Promise<HourlySalesEntry[]> {
 		const dateCompact = businessDate.replace(/-/g, '');
 		const orderGuids = await this.request<string[]>(
 			`/orders/v2/orders?businessDate=${dateCompact}`,
 		);
 		if (!orderGuids || orderGuids.length === 0) return [];
 
+		const rcFilterLower = revenueCenterFilter?.map(r => r.toLowerCase());
+		// Pre-fetch RC name map when filtering is needed
+		const rcMap = rcFilterLower ? await this.getRevenueCenterMap() : new Map<string, string>();
 		const hourBuckets: Record<number, { revenue: number; covers: number; orderCount: number }> = {};
 
 		for (let i = 0; i < orderGuids.length; i += 5) {
@@ -337,9 +554,19 @@ export class ToastClient {
 			);
 			for (const o of orders) {
 				if (!o) continue;
+				if (o.deleted) continue;
+				// Revenue center filtering
+				if (rcFilterLower) {
+					const matchingChecks = this.filterChecksByRevenueCenter(o, rcFilterLower, rcMap);
+					if (matchingChecks.length === 0) continue;
+					o.checks = matchingChecks;
+				}
 				const dateStr = o.closedDate || o.openedDate;
 				if (!dateStr) continue;
-				const hour = new Date(dateStr).getHours();
+				// Convert UTC timestamp to EST/EDT hour
+				const utcDate = new Date(dateStr);
+				const estStr = utcDate.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false });
+				const hour = parseInt(estStr, 10);
 				if (!hourBuckets[hour]) {
 					hourBuckets[hour] = { revenue: 0, covers: 0, orderCount: 0 };
 				}
@@ -347,7 +574,9 @@ export class ToastClient {
 				hourBuckets[hour].covers += o.numberOfGuests || 0;
 				if (o.checks && Array.isArray(o.checks)) {
 					for (const check of o.checks) {
-						hourBuckets[hour].revenue += check.amount || 0;
+						if (check.deleted) continue;
+						if ((check.amount || 0) <= 0) continue;
+						hourBuckets[hour].revenue += check.amount;
 					}
 				}
 			}
@@ -361,6 +590,92 @@ export class ToastClient {
 				orderCount: data.orderCount,
 			}))
 			.sort((a, b) => a.hour - b.hour);
+	}
+
+	/**
+	 * Compute dining metrics: avg dwell time, table turns, party size
+	 * from order open/close timestamps.
+	 * Assumes ~60 seats as default capacity (can be configured per location).
+	 *
+	 * @param revenueCenterFilter - When provided, only include orders whose
+	 *   checks match one of these revenue center names (case-insensitive).
+	 */
+	async getDiningMetrics(businessDate: string, seatCapacity = 60, revenueCenterFilter?: string[]): Promise<DiningMetrics> {
+		const dateCompact = businessDate.replace(/-/g, '');
+		const orderGuids = await this.request<string[]>(
+			`/orders/v2/orders?businessDate=${dateCompact}`,
+		);
+		if (!orderGuids || orderGuids.length === 0) {
+			return { avgDwellMinutes: 0, avgTurnsPerSeat: 0, totalOrders: 0, avgPartySize: 0, peakHourTurns: 0 };
+		}
+
+		const rcFilterLower = revenueCenterFilter?.map(r => r.toLowerCase());
+		// Pre-fetch RC name map when filtering is needed
+		const rcMap = rcFilterLower ? await this.getRevenueCenterMap() : new Map<string, string>();
+		const dwellTimes: number[] = [];
+		let totalGuests = 0;
+		let ordersWithGuests = 0;
+		const hourOrderCounts: Record<number, number> = {};
+
+		for (let i = 0; i < orderGuids.length; i += 5) {
+			if (i > 0) await new Promise(r => setTimeout(r, 500));
+			const batch = orderGuids.slice(i, i + 5);
+			const orders = await Promise.all(
+				batch.map(g => this.request<any>(`/orders/v2/orders/${g}`).catch(() => null)),
+			);
+			for (const o of orders) {
+				if (!o) continue;
+				// Revenue center filtering
+				if (rcFilterLower) {
+					const matchingChecks = this.filterChecksByRevenueCenter(o, rcFilterLower, rcMap);
+					if (matchingChecks.length === 0) continue;
+				}
+				// Dwell time = closedDate - openedDate
+				if (o.openedDate && o.closedDate) {
+					const opened = new Date(o.openedDate).getTime();
+					const closed = new Date(o.closedDate).getTime();
+					if (closed > opened) {
+						const dwellMin = (closed - opened) / (1000 * 60);
+						// Filter out unreasonable dwell times (< 5 min or > 300 min)
+						if (dwellMin >= 5 && dwellMin <= 300) {
+							dwellTimes.push(dwellMin);
+						}
+					}
+				}
+				if (o.numberOfGuests && o.numberOfGuests > 0) {
+					totalGuests += o.numberOfGuests;
+					ordersWithGuests++;
+				}
+				// Track orders per hour for peak calculation
+				const timeStr = o.openedDate || o.closedDate;
+				if (timeStr) {
+					const utc = new Date(timeStr);
+					const estStr = utc.toLocaleString('en-US', { timeZone: 'America/New_York', hour: 'numeric', hour12: false });
+					const hour = parseInt(estStr, 10);
+					hourOrderCounts[hour] = (hourOrderCounts[hour] || 0) + 1;
+				}
+			}
+		}
+
+		const avgDwellMinutes = dwellTimes.length > 0
+			? dwellTimes.reduce((a, b) => a + b, 0) / dwellTimes.length
+			: 0;
+		const avgPartySize = ordersWithGuests > 0 ? totalGuests / ordersWithGuests : 0;
+
+		// Turns per seat: total covers / seat capacity
+		const avgTurnsPerSeat = seatCapacity > 0 ? totalGuests / seatCapacity : 0;
+
+		// Peak hour turns
+		const peakHourOrders = Math.max(0, ...Object.values(hourOrderCounts));
+		const peakHourTurns = seatCapacity > 0 ? (peakHourOrders * avgPartySize) / seatCapacity : 0;
+
+		return {
+			avgDwellMinutes: Math.round(avgDwellMinutes * 10) / 10,
+			avgTurnsPerSeat: Math.round(avgTurnsPerSeat * 100) / 100,
+			totalOrders: orderGuids.length,
+			avgPartySize: Math.round(avgPartySize * 100) / 100,
+			peakHourTurns: Math.round(peakHourTurns * 100) / 100,
+		};
 	}
 
 	/** Get time entries (labor data) for a business date (YYYY-MM-DD) */
@@ -458,6 +773,8 @@ export class ToastClient {
 			'/restaurants/v1/restaurants',
 		];
 		for (const endpoint of endpoints) {
+			const controller = new AbortController();
+			const timeout = setTimeout(() => controller.abort(), 30000);
 			try {
 				const response = await fetch(
 					`${this.config.baseUrl}${endpoint}`,
@@ -467,6 +784,7 @@ export class ToastClient {
 							'Toast-Restaurant-External-ID': this.config.restaurantGuid || '',
 							'Content-Type': 'application/json',
 						},
+						signal: controller.signal,
 					},
 				);
 				if (!response.ok) continue;
@@ -489,6 +807,8 @@ export class ToastClient {
 				}
 			} catch {
 				continue;
+			} finally {
+				clearTimeout(timeout);
 			}
 		}
 		return [{ guid: this.config.restaurantGuid || '', name: 'Current Restaurant' }];

@@ -50,6 +50,14 @@ function formatDate(dateStr: string): string {
   });
 }
 
+function getMondayOfWeek(dateStr: string): string {
+  const d = new Date(dateStr + 'T12:00:00');
+  const day = d.getDay(); // 0=Sun, 1=Mon, ...
+  const diff = day === 0 ? 6 : day - 1;
+  d.setDate(d.getDate() - diff);
+  return d.toISOString().split('T')[0];
+}
+
 interface PositionVariance {
   position: string;
   actual: number;
@@ -354,13 +362,38 @@ export const GET: RequestHandler = async ({ url }) => {
     hourlyEfficiency = 'Hourly sales data not yet available for this date. Data populates after the next Toast sync.';
   }
 
-  // Fetch existing manager notes
-  const { data: notesRow } = await sb
-    .from('manager_notes')
-    .select('notes, labor_variance_notes, updated_at')
-    .eq('location_id', locationId)
-    .eq('business_date', date)
-    .single();
+  // Fetch existing manager notes + WTD data in parallel
+  const mondayDate = getMondayOfWeek(date);
+  const [
+    { data: notesRow },
+    { data: wtdActualsRows },
+    { data: wtdBudgetRows },
+    { data: wtdForecastRows },
+    { data: wtdLaborRows },
+  ] = await Promise.all([
+    sb.from('manager_notes').select('notes, labor_variance_notes, updated_at').eq('location_id', locationId).eq('business_date', date).single(),
+    sb.from('daily_actuals').select('revenue').eq('location_id', locationId).gte('business_date', mondayDate).lte('business_date', date),
+    sb.from('daily_budget').select('budget_revenue, server_budget, bartender_budget, host_budget, barista_budget, support_budget, training_budget, line_cooks_budget, prep_cooks_budget, pastry_budget, dishwashers_budget').eq('location_id', locationId).gte('business_date', mondayDate).lte('business_date', date),
+    sb.from('daily_forecasts').select('manager_revenue, ai_suggested_revenue').eq('location_id', locationId).gte('business_date', mondayDate).lte('business_date', date),
+    sb.from('daily_labor').select('labor_dollars').eq('location_id', locationId).gte('business_date', mondayDate).lte('business_date', date),
+  ]);
+
+  const BUDGET_LABOR_COLS = [
+    'server_budget', 'bartender_budget', 'host_budget', 'barista_budget',
+    'support_budget', 'training_budget', 'line_cooks_budget', 'prep_cooks_budget',
+    'pastry_budget', 'dishwashers_budget',
+  ];
+  const wtdRevenue = (wtdActualsRows || []).reduce((s: number, r: any) => s + (r.revenue || 0), 0);
+  const wtdBudgetRevenue = (wtdBudgetRows || []).reduce((s: number, r: any) => s + (r.budget_revenue || 0), 0);
+  const wtdForecastRevenue = (wtdForecastRows || []).reduce(
+    (s: number, r: any) => s + (r.manager_revenue || r.ai_suggested_revenue || 0), 0,
+  );
+  const wtdLaborActual = (wtdLaborRows || []).reduce((s: number, r: any) => s + (r.labor_dollars || 0), 0);
+  const wtdLaborBudget = (wtdBudgetRows || []).reduce((s: number, row: any) => {
+    return s + BUDGET_LABOR_COLS.reduce((rs: number, col: string) => rs + (row[col] || 0), 0);
+  }, 0);
+  const wtdLaborPct = wtdRevenue > 0 ? wtdLaborActual / wtdRevenue : 0;
+  const wtdBudgetLaborPct = wtdBudgetRevenue > 0 ? wtdLaborBudget / wtdBudgetRevenue : 0;
 
   return json({
     date,
@@ -389,6 +422,20 @@ export const GET: RequestHandler = async ({ url }) => {
       bohActual,
       fohProjected,
       bohProjected,
+      // Structured labor metrics for downstream consumers (email cron, etc.)
+      fohLabor: fohActual,
+      bohLabor: bohActual,
+      totalLabor: totalLaborActual,
+      fohBudgetLabor: FOH_POSITIONS.reduce((s, p) => s + (budgetByPosition[p] || 0), 0),
+      bohBudgetLabor: BOH_POSITIONS.reduce((s, p) => s + (budgetByPosition[p] || 0), 0),
+      totalBudgetLabor: Object.values(budgetByPosition).reduce((s, v) => s + v, 0),
+      fohProjectedLabor: fohProjected,
+      bohProjectedLabor: bohProjected,
+      totalProjectedLabor: totalLaborProjected,
+      laborPct: revenue > 0 ? totalLaborActual / revenue : 0,
+      budgetLaborPct: budgetRevenue > 0
+        ? Object.values(budgetByPosition).reduce((s, v) => s + v, 0) / budgetRevenue
+        : 0,
       targetLaborPct,
       sameWeekPYRevenue,
       priorYearRevenue,
@@ -421,6 +468,15 @@ export const GET: RequestHandler = async ({ url }) => {
         avgPartySize: Number(resoData.avg_party_size) || null,
         peakHour: resoData.peak_hour,
       } : null,
+    },
+    wtd: {
+      wtdRevenue,
+      wtdBudgetRevenue,
+      wtdForecastRevenue,
+      wtdLaborActual,
+      wtdLaborBudget,
+      wtdLaborPct,
+      wtdBudgetLaborPct,
     },
     managerNotes: notesRow?.notes || '',
     laborVarianceNotes: notesRow?.labor_variance_notes || '',

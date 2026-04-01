@@ -1,6 +1,9 @@
 <script lang="ts">
+  import { getClientSupabase } from '$lib/supabase-client';
+
   let locationId = $state('');
   let locations = $state<{id: string; name: string}[]>([]);
+  let singleLocation = $state(false);
   let monthNumber = $state(0);
   let kpiData = $state<any>(null);
   let loading = $state(false);
@@ -12,11 +15,17 @@
   }
 
   async function loadLocations() {
-    const res = await fetch('/api/v1/locations');
+    const supabase = getClientSupabase();
+    const { data: { session } } = await supabase.auth.getSession();
+    const email = session?.user?.email;
+    const url = email ? `/api/v1/auth/my-locations?email=${encodeURIComponent(email)}` : '/api/v1/locations';
+    const res = await fetch(url);
     const data = await res.json();
     locations = data.locations || data || [];
+    singleLocation = locations.length === 1;
     if (locations.length > 0 && !locationId) {
-      locationId = locations[0].id;
+      const saved = localStorage.getItem('helixo_selected_location');
+      locationId = (saved && locations.some(l => l.id === saved)) ? saved : locations[0].id;
       if (monthNumber === 0) {
         monthNumber = detectCurrentMonth();
       }
@@ -81,11 +90,15 @@
       <p class="text-sm text-[#6b7280]">Revenue & Labor Performance</p>
     </div>
     <div class="flex flex-wrap items-center gap-2 sm:gap-4">
-      <select bind:value={locationId} onchange={loadKPIs} class="leo-select flex-1 sm:flex-none">
-        {#each locations as loc}
-          <option value={loc.id}>{loc.name}</option>
-        {/each}
-      </select>
+      {#if singleLocation}
+        <span class="text-sm font-medium text-[#374151]">{locations[0]?.name}</span>
+      {:else}
+        <select bind:value={locationId} onchange={() => { localStorage.setItem('helixo_selected_location', locationId); loadKPIs(); }} class="leo-select flex-1 sm:flex-none">
+          {#each locations as loc}
+            <option value={loc.id}>{loc.name}</option>
+          {/each}
+        </select>
+      {/if}
       <select bind:value={monthNumber} onchange={loadKPIs} class="leo-select">
         {#each monthNames as name, i}
           <option value={i + 1}>{name}</option>

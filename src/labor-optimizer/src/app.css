@@ -14,14 +14,14 @@
 @layer components {
   /* Leonardo Table Header */
   .leo-th {
-    background: #1e3a5f;
+    background: #111111;
     color: white;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 500;
     text-transform: uppercase;
-    padding: 8px 12px;
+    padding: 5px 6px;
     text-align: center;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.02em;
     white-space: nowrap;
   }
 
@@ -30,10 +30,10 @@
     position: sticky;
     top: 0;
     z-index: 10;
-    background: #1e3a5f;
+    background: #111111;
   }
   .leo-table-freeze thead tr:nth-child(2) th {
-    top: 36px;
+    top: 28px;
   }
   .leo-table-freeze {
     max-height: calc(100vh - 200px);
@@ -43,12 +43,12 @@
 
   /* Leonardo Sub-Header (group headers) */
   .leo-th-group {
-    background: #1e3a5f;
+    background: #111111;
     color: white;
-    font-size: 13px;
+    font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    padding: 8px 12px;
+    padding: 5px 6px;
     text-align: center;
     letter-spacing: 0.04em;
     border-left: 1px solid rgba(255,255,255,0.15);
@@ -56,8 +56,8 @@
 
   /* Leonardo Table Cell */
   .leo-td {
-    padding: 6px 12px;
-    font-size: 13px;
+    padding: 4px 6px;
+    font-size: 11px;
     text-align: center;
     border-bottom: 1px solid #e5e7eb;
     white-space: nowrap;
@@ -67,9 +67,9 @@
   .leo-footer td {
     background: #f1f5f9;
     font-weight: 600;
-    border-top: 2px solid #1e3a5f;
-    padding: 8px 12px;
-    font-size: 13px;
+    border-top: 2px solid #111111;
+    padding: 5px 6px;
+    font-size: 11px;
   }
 
   /* Leonardo Section Title */
@@ -91,7 +91,7 @@
 
   /* Leonardo Button Primary */
   .leo-btn {
-    background: #1e3a5f;
+    background: #3b5bdb;
     color: white;
     padding: 8px 20px;
     border-radius: 6px;
@@ -100,7 +100,7 @@
     transition: background 0.15s;
   }
   .leo-btn:hover {
-    background: #162d4a;
+    background: #3451c7;
   }
   .leo-btn:disabled {
     opacity: 0.5;
@@ -133,8 +133,8 @@
   }
   .leo-select:focus {
     outline: none;
-    border-color: #1e3a5f;
-    box-shadow: 0 0 0 2px rgba(30,58,95,0.15);
+    border-color: #3b5bdb;
+    box-shadow: 0 0 0 2px rgba(59,91,219,0.15);
   }
 
   /* Positive / Negative colors */
@@ -143,7 +143,7 @@
 
   /* Current week highlight */
   .leo-current-week {
-    background: rgba(30, 58, 95, 0.05);
+    background: rgba(59, 91, 219, 0.05);
   }
 
   /* Alternating rows */
@@ -167,6 +167,20 @@
     background: #cbd5e1;
     border-radius: 3px;
   }
+}
+
+/* ── Native App (Capacitor) ── */
+.native-app {
+  /* Account for iOS safe areas (notch, home indicator) */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+/* Disable pull-to-refresh and rubber-band scrolling in native WebView */
+.native-app {
+  overscroll-behavior: none;
 }
 
 /* ── Mobile Responsive ── */

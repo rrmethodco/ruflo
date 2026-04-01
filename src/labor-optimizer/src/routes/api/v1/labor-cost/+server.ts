@@ -10,7 +10,7 @@ export const GET: RequestHandler = async ({ url }) => {
   if (locationId) {
     const metrics = await getRealTimeMetrics(locationId, date);
     const alerts = includeAlerts ? await checkBudgetAlerts(date) : [];
-    return json({ metrics, alerts });
+    return json({ metrics, alerts }, { headers: { 'Cache-Control': 's-maxage=60, stale-while-revalidate=300' } });
   }
 
   // All locations summary
@@ -36,5 +36,5 @@ export const GET: RequestHandler = async ({ url }) => {
     locationsWarning: allMetrics.filter(m => m.status === 'warning').length,
   };
 
-  return json({ locations: allMetrics, totals, alerts });
+  return json({ locations: allMetrics, totals, alerts }, { headers: { 'Cache-Control': 's-maxage=60, stale-while-revalidate=300' } });
 };

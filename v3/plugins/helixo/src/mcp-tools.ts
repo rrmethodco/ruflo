@@ -1,0 +1,677 @@
+/**
+ * Helixo MCP Tools
+ *
+ * Exposes Helixo engines as MCP tools for agent consumption.
+ * 8 tools covering forecast, labor, scheduling, and pace monitoring.
+ */
+
+import { z } from 'zod';
+import {
+  type HelixoConfig,
+  type HistoricalSalesRecord,
+  type MCPTool,
+  type MCPToolResult,
+  type SpreadsheetColumnMapping,
+  type ToolContext,
+  type WeatherCondition,
+  ForecastRequestSchema,
+  LaborPlanRequestSchema,
+  PaceUpdateSchema,
+  ScheduleRequestSchema,
+} from './types.js';
+import { ForecastEngine } from './engines/forecast-engine.js';
+import { LaborEngine } from './engines/labor-engine.js';
+import { SchedulerEngine } from './engines/scheduler-engine.js';
+import { PaceMonitor } from './engines/pace-monitor.js';
+import { SharePointAdapter } from './integrations/sharepoint-adapter.js';
+import { ExcelAdapter } from './integrations/excel-adapter.js';
+
+// ============================================================================
+// Input Validation Schemas (tool-level)
+// ============================================================================
+
+const DateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Date must be YYYY-MM-DD');
+
+const DailyForecastInputSchema = z.object({
+  date: DateSchema,
+  history: z.array(z.object({
+    date: z.string(),
+    dayOfWeek: z.string(),
+    mealPeriod: z.string(),
+    intervalStart: z.string(),
+    intervalEnd: z.string(),
+    netSales: z.number(),
+    grossSales: z.number(),
+    covers: z.number().int().min(0),
+    checkCount: z.number().int().min(0),
+    avgCheck: z.number().min(0),
+    menuMix: z.array(z.any()),
+  })),
+  weather: z.object({
+    tempF: z.number(),
+    precipitation: z.enum(['none', 'light_rain', 'heavy_rain', 'snow', 'extreme']),
+    description: z.string(),
+  }).optional(),
+  holidays: z.array(z.string()).optional(),
+});
+
+const WeeklyForecastInputSchema = z.object({
+  weekStartDate: DateSchema,
+  history: z.array(z.any()).min(0),
+});
+
+const LaborPlanInputSchema = z.object({
+  forecast: z.object({
+    date: z.string(),
+    dayOfWeek: z.string(),
+    mealPeriods: z.array(z.any()),
+    totalDaySales: z.number(),
+    totalDayCovers: z.number(),
+  }),
+});
+
+const ScheduleInputSchema = z.object({
+  weekStartDate: DateSchema,
+  laborPlans: z.array(z.any()).min(1),
+  staff: z.array(z.any()).min(1),
+});
+
+const PaceInputSchema = z.object({
+  forecast: z.object({
+    mealPeriod: z.string(),
+    intervals: z.array(z.any()),
+    totalProjectedSales: z.number(),
+    totalProjectedCovers: z.number(),
+  }),
+  actualSales: z.number().min(0),
+  actualCovers: z.number().int().min(0),
+  currentTime: z.string().regex(/^\d{2}:\d{2}$/).optional(),
+});
+
+/** Validate input and return parsed result or error MCPToolResult */
+function validateInput<T>(schema: z.ZodType<T>, input: unknown, start: number): { data: T } | { error: MCPToolResult } {
+  const result = schema.safeParse(input);
+  if (!result.success) {
+    const issues = result.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ');
+    return { error: { success: false, error: `Validation failed: ${issues}`, metadata: { durationMs: Date.now() - start } } };
+  }
+  return { data: result.data };
+}
+
+// ============================================================================
+// Tool Definitions
+// ============================================================================
+
+export function createHelixoTools(config: HelixoConfig): MCPTool[] {
+  const tools: MCPTool[] = [
+    createForecastDailyTool(config),
+    createForecastWeeklyTool(config),
+    createLaborPlanTool(config),
+    createScheduleTool(config),
+    createPaceSnapshotTool(config),
+    createPaceRecommendationsTool(config),
+    createForecastComparisonTool(config),
+    createLaborCostAnalysisTool(config),
+  ];
+
+  // Add SharePoint/Excel tools when configured
+  if (config.sharepoint) {
+    tools.push(createSharePointSyncTool(config));
+  }
+  if (config.excel) {
+    tools.push(createExcelSyncTool(config));
+  }
+  if (config.sharepoint || config.excel) {
+    tools.push(createDataSourceStatusTool(config));
+  }
+
+  return tools;
+}
+
+// --------------------------------------------------------------------------
+// Forecast Tools
+// --------------------------------------------------------------------------
+
+function createForecastDailyTool(config: HelixoConfig): MCPTool {
+  const engine = new ForecastEngine(config.restaurant, config.forecast);
+
+  return {
+    name: 'helixo_forecast_daily',
+    description: 'Generate a daily revenue forecast with 15-minute interval granularity. Uses multi-variable regression combining historical trends, day-of-week patterns, weather, reservations, and momentum.',
+    category: 'helixo',
+    version: '3.5.0',
+    tags: ['forecast', 'revenue', 'restaurant'],
+    cacheable: true,
+    cacheTTL: 300_000,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        date: { type: 'string', description: 'Target date (YYYY-MM-DD)' },
+        history: { type: 'array', description: 'Historical sales records' },
+        weather: { type: 'object', description: 'Weather condition (optional)' },
+        holidays: { type: 'array', description: 'Holiday dates (optional)' },
+      },
+      required: ['date', 'history'],
+    },
+    handler: async (input: Record<string, unknown>, ctx?: ToolContext): Promise<MCPToolResult> => {
+      const start = Date.now();
+      try {
+        const v = validateInput(DailyForecastInputSchema, input, start);
+        if ('error' in v) return v.error;
+        const { date, history, weather, holidays: holidayList } = v.data;
+        const holidays = holidayList ? new Set(holidayList) : undefined;
+        const forecast = engine.generateDailyForecast(
+          date,
+          history as HistoricalSalesRecord[],
+          weather as WeatherCondition | undefined,
+          undefined,
+          holidays,
+        );
+        return {
+          success: true,
+          data: forecast,
+          metadata: { durationMs: Date.now() - start },
+        };
+      } catch (err) {
+        return { success: false, error: String(err), metadata: { durationMs: Date.now() - start } };
+      }
+    },
+  };
+}
+
+function createForecastWeeklyTool(config: HelixoConfig): MCPTool {
+  const engine = new ForecastEngine(config.restaurant, config.forecast);
+
+  return {
+    name: 'helixo_forecast_weekly',
+    description: 'Generate a full 7-day revenue forecast with comp percentages to last week and last year.',
+    category: 'helixo',
+    version: '3.5.0',
+    tags: ['forecast', 'revenue', 'weekly'],
+    cacheable: true,
+    cacheTTL: 600_000,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        weekStartDate: { type: 'string', description: 'Monday of the target week (YYYY-MM-DD)' },
+        history: { type: 'array', description: 'Historical sales records' },
+      },
+      required: ['weekStartDate', 'history'],
+    },
+    handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
+      const start = Date.now();
+      try {
+        const v = validateInput(WeeklyForecastInputSchema, input, start);
+        if ('error' in v) return v.error;
+        const forecast = engine.generateWeeklyForecast(
+          v.data.weekStartDate,
+          v.data.history as HistoricalSalesRecord[],
+        );
+        return {
+          success: true,
+          data: forecast,
+          metadata: { durationMs: Date.now() - start },
+        };
+      } catch (err) {
+        return { success: false, error: String(err), metadata: { durationMs: Date.now() - start } };
+      }
+    },
+  };
+}
+
+// --------------------------------------------------------------------------
+// Labor Tools
+// --------------------------------------------------------------------------
+
+function createLaborPlanTool(config: HelixoConfig): MCPTool {
+  const engine = new LaborEngine(config.restaurant, config.labor);
+
+  return {
+    name: 'helixo_labor_plan',
+    description: 'Generate an optimized daily labor plan from a revenue forecast. Outputs staffing by role per 15-minute interval with staggered starts and labor cost projections.',
+    category: 'helixo',
+    version: '3.5.0',
+    tags: ['labor', 'staffing', 'optimization'],
+    cacheable: true,
+    cacheTTL: 300_000,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        forecast: { type: 'object', description: 'DailyForecast object from forecast engine' },
+      },
+      required: ['forecast'],
+    },
+    handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
+      const start = Date.now();
+      try {
+        const v = validateInput(LaborPlanInputSchema, input, start);
+        if ('error' in v) return v.error;
+        const plan = engine.generateDailyLaborPlan(v.data.forecast as never);
+        return {
+          success: true,
+          data: plan,
+          metadata: { durationMs: Date.now() - start },
+        };
+      } catch (err) {
+        return { success: false, error: String(err), metadata: { durationMs: Date.now() - start } };
+      }
+    },
+  };
+}
+
+function createLaborCostAnalysisTool(config: HelixoConfig): MCPTool {
+  const engine = new LaborEngine(config.restaurant, config.labor);
+
+  return {
+    name: 'helixo_labor_cost_analysis',
+    description: 'Analyze labor cost vs revenue targets. Shows cost breakdown by department (FOH/BOH/Management) and identifies over/under-staffed intervals.',
+    category: 'helixo',
+    version: '3.5.0',
+    tags: ['labor', 'cost', 'analysis'],
+    cacheable: false,
+    cacheTTL: 0,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        forecast: { type: 'object', description: 'DailyForecast object' },
+        targetLaborPercent: { type: 'number', description: 'Target labor cost as decimal (e.g., 0.28)' },
+      },
+      required: ['forecast'],
+    },
+    handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
+      const start = Date.now();
+      try {
+        const plan = engine.generateDailyLaborPlan(input.forecast as never);
+        const target = (input.targetLaborPercent as number) ?? config.labor.targets.totalLaborPercent;
+        const variance = plan.dayLaborCostPercent - target;
+
+        return {
+          success: true,
+          data: {
+            laborPlan: plan,
+            analysis: {
+              targetPercent: target,
+              actualPercent: plan.dayLaborCostPercent,
+              variance,
+              status: Math.abs(variance) < 0.02 ? 'on_target' : variance > 0 ? 'over_budget' : 'under_budget',
+              totalCost: plan.totalDayLaborCost,
+              prepHours: plan.prepHours,
+              sideWorkHours: plan.sideWorkHours,
+              breakHours: plan.breakHours,
+            },
+          },
+          metadata: { durationMs: Date.now() - start },
+        };
+      } catch (err) {
+        return { success: false, error: String(err), metadata: { durationMs: Date.now() - start } };
+      }
+    },
+  };
+}
+
+// --------------------------------------------------------------------------
+// Schedule Tools
+// --------------------------------------------------------------------------
+
+function createScheduleTool(config: HelixoConfig): MCPTool {
+  const scheduler = new SchedulerEngine(config.restaurant, config.scheduling);
+
+  return {
+    name: 'helixo_schedule_generate',
+    description: 'Auto-generate a weekly staff schedule from labor plans and employee availability. Handles overtime limits, minimum rest, skill matching, and coverage gap detection.',
+    category: 'helixo',
+    version: '3.5.0',
+    tags: ['schedule', 'staffing', 'auto-scheduler'],
+    cacheable: false,
+    cacheTTL: 0,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        weekStartDate: { type: 'string', description: 'Monday of the target week (YYYY-MM-DD)' },
+        laborPlans: { type: 'array', description: 'Array of DailyLaborPlan objects (7 days)' },
+        staff: { type: 'array', description: 'Array of StaffMember objects' },
+      },
+      required: ['weekStartDate', 'laborPlans', 'staff'],
+    },
+    handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
+      const start = Date.now();
+      try {
+        const v = validateInput(ScheduleInputSchema, input, start);
+        if ('error' in v) return v.error;
+        const schedule = scheduler.generateWeeklySchedule(
+          v.data.weekStartDate,
+          v.data.laborPlans as never[],
+          v.data.staff as never[],
+        );
+        return {
+          success: true,
+          data: schedule,
+          metadata: { durationMs: Date.now() - start },
+        };
+      } catch (err) {
+        return { success: false, error: String(err), metadata: { durationMs: Date.now() - start } };
+      }
+    },
+  };
+}
+
+// --------------------------------------------------------------------------
+// Pace Tools
+// --------------------------------------------------------------------------
+
+function createPaceSnapshotTool(config: HelixoConfig): MCPTool {
+  const monitor = new PaceMonitor(config.paceMonitor);
+
+  return {
+    name: 'helixo_pace_snapshot',
+    description: 'Get a real-time pace snapshot comparing actual sales against forecast. Returns pace status, projected end-of-period sales, and staffing recommendations.',
+    category: 'helixo',
+    version: '3.5.0',
+    tags: ['pace', 'real-time', 'monitoring'],
+    cacheable: false,
+    cacheTTL: 0,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        forecast: { type: 'object', description: 'MealPeriodForecast for the current period' },
+        actualSales: { type: 'number', description: 'Actual net sales so far' },
+        actualCovers: { type: 'number', description: 'Actual covers so far' },
+        currentTime: { type: 'string', description: 'Current time HH:mm (optional, defaults to now)' },
+      },
+      required: ['forecast', 'actualSales', 'actualCovers'],
+    },
+    handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
+      const start = Date.now();
+      try {
+        const v = validateInput(PaceInputSchema, input, start);
+        if ('error' in v) return v.error;
+        const snapshot = monitor.calculatePace(
+          v.data.forecast as never,
+          v.data.actualSales,
+          v.data.actualCovers,
+          v.data.currentTime,
+        );
+        return {
+          success: true,
+          data: snapshot,
+          metadata: { durationMs: Date.now() - start },
+        };
+      } catch (err) {
+        return { success: false, error: String(err), metadata: { durationMs: Date.now() - start } };
+      }
+    },
+  };
+}
+
+function createPaceRecommendationsTool(config: HelixoConfig): MCPTool {
+  const monitor = new PaceMonitor(config.paceMonitor);
+
+  return {
+    name: 'helixo_pace_recommendations',
+    description: 'Get staffing adjustment recommendations based on current pace. Returns cut/call/extend/hold recommendations with urgency levels.',
+    category: 'helixo',
+    version: '3.5.0',
+    tags: ['pace', 'recommendations', 'labor'],
+    cacheable: false,
+    cacheTTL: 0,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        forecast: { type: 'object', description: 'MealPeriodForecast' },
+        actualSales: { type: 'number', description: 'Actual net sales' },
+        actualCovers: { type: 'number', description: 'Actual covers' },
+      },
+      required: ['forecast', 'actualSales', 'actualCovers'],
+    },
+    handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
+      const start = Date.now();
+      try {
+        const v = validateInput(PaceInputSchema, input, start);
+        if ('error' in v) return v.error;
+        const snapshot = monitor.calculatePace(
+          v.data.forecast as never,
+          v.data.actualSales,
+          v.data.actualCovers,
+        );
+        return {
+          success: true,
+          data: {
+            paceStatus: snapshot.paceStatus,
+            pacePercent: snapshot.pacePercent,
+            recommendations: snapshot.recommendations,
+          },
+          metadata: { durationMs: Date.now() - start },
+        };
+      } catch (err) {
+        return { success: false, error: String(err), metadata: { durationMs: Date.now() - start } };
+      }
+    },
+  };
+}
+
+// --------------------------------------------------------------------------
+// Comparison Tool
+// --------------------------------------------------------------------------
+
+function createForecastComparisonTool(config: HelixoConfig): MCPTool {
+  const engine = new ForecastEngine(config.restaurant, config.forecast);
+
+  return {
+    name: 'helixo_forecast_comparison',
+    description: 'Compare a forecast against historical comp periods. Shows same-week-last-year, trailing averages, and budget targets for review.',
+    category: 'helixo',
+    version: '3.5.0',
+    tags: ['forecast', 'comparison', 'review'],
+    cacheable: true,
+    cacheTTL: 300_000,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        date: { type: 'string', description: 'Target date (YYYY-MM-DD)' },
+        history: { type: 'array', description: 'Historical sales records (12+ months ideal)' },
+        budgetTarget: { type: 'object', description: 'Budget target (optional)' },
+      },
+      required: ['date', 'history'],
+    },
+    handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
+      const start = Date.now();
+      try {
+        const forecast = engine.generateDailyForecast(
+          input.date as string,
+          input.history as never[],
+        );
+
+        return {
+          success: true,
+          data: {
+            forecast,
+            budgetTarget: input.budgetTarget ?? null,
+          },
+          metadata: { durationMs: Date.now() - start },
+        };
+      } catch (err) {
+        return { success: false, error: String(err), metadata: { durationMs: Date.now() - start } };
+      }
+    },
+  };
+}
+
+// --------------------------------------------------------------------------
+// SharePoint / Excel Tools
+// --------------------------------------------------------------------------
+
+const ColumnMappingSchema = z.object({
+  date: z.string().optional(),
+  mealPeriod: z.string().optional(),
+  netSales: z.string().optional(),
+  grossSales: z.string().optional(),
+  covers: z.string().optional(),
+  checkCount: z.string().optional(),
+  avgCheck: z.string().optional(),
+  laborHours: z.string().optional(),
+  laborCost: z.string().optional(),
+  employeeName: z.string().optional(),
+  role: z.string().optional(),
+  hourlyRate: z.string().optional(),
+  budgetSales: z.string().optional(),
+});
+
+const SharePointSyncInputSchema = z.object({
+  dataType: z.enum(['sales', 'labor']).default('sales'),
+  worksheetName: z.string().optional(),
+  columnMapping: ColumnMappingSchema.optional(),
+  businessDate: DateSchema.optional(),
+});
+
+const ExcelSyncInputSchema = z.object({
+  dataType: z.enum(['sales', 'labor']).default('sales'),
+  columnMapping: ColumnMappingSchema.optional(),
+  businessDate: DateSchema.optional(),
+});
+
+function createSharePointSyncTool(config: HelixoConfig): MCPTool {
+  return {
+    name: 'helixo_sharepoint_sync',
+    description: 'Sync data from a SharePoint-hosted Excel workbook or list. Fetches the latest data from Microsoft Graph API and transforms it into sales or labor records for Helixo engines.',
+    category: 'helixo',
+    version: '3.5.0',
+    tags: ['sharepoint', 'excel', 'sync', 'microsoft'],
+    cacheable: false,
+    cacheTTL: 0,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dataType: { type: 'string', description: 'Type of data to sync: "sales" or "labor"' },
+        worksheetName: { type: 'string', description: 'Worksheet name to read (optional)' },
+        columnMapping: { type: 'object', description: 'Column header mapping (optional, uses config defaults)' },
+        businessDate: { type: 'string', description: 'Business date for labor data (YYYY-MM-DD)' },
+      },
+      required: [],
+    },
+    handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
+      const start = Date.now();
+      try {
+        if (!config.sharepoint) {
+          return { success: false, error: 'SharePoint not configured', metadata: { durationMs: Date.now() - start } };
+        }
+
+        const v = validateInput(SharePointSyncInputSchema, input, start);
+        if ('error' in v) return v.error;
+
+        const adapter = new SharePointAdapter(config.sharepoint);
+        const mapping = (v.data.columnMapping ?? config.columnMapping ?? {}) as SpreadsheetColumnMapping;
+        const rows = await adapter.fetchExcelRows(v.data.worksheetName);
+
+        if (v.data.dataType === 'labor') {
+          const date = v.data.businessDate ?? new Date().toISOString().slice(0, 10);
+          const labor = adapter.rowsToLaborData(rows, mapping, date);
+          return { success: true, data: { type: 'labor', recordCount: labor.entries.length, labor }, metadata: { durationMs: Date.now() - start } };
+        }
+
+        const sales = adapter.rowsToSalesRecords(rows, mapping);
+        return { success: true, data: { type: 'sales', recordCount: sales.length, sales }, metadata: { durationMs: Date.now() - start } };
+      } catch (err) {
+        return { success: false, error: String(err), metadata: { durationMs: Date.now() - start } };
+      }
+    },
+  };
+}
+
+function createExcelSyncTool(config: HelixoConfig): MCPTool {
+  return {
+    name: 'helixo_excel_sync',
+    description: 'Sync data from a local Excel (.xlsx) or CSV file. Reads the file and transforms it into sales or labor records for Helixo engines.',
+    category: 'helixo',
+    version: '3.5.0',
+    tags: ['excel', 'csv', 'sync', 'local'],
+    cacheable: false,
+    cacheTTL: 0,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dataType: { type: 'string', description: 'Type of data to sync: "sales" or "labor"' },
+        columnMapping: { type: 'object', description: 'Column header mapping (optional, uses config defaults)' },
+        businessDate: { type: 'string', description: 'Business date for labor data (YYYY-MM-DD)' },
+      },
+      required: [],
+    },
+    handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
+      const start = Date.now();
+      try {
+        if (!config.excel) {
+          return { success: false, error: 'Excel file not configured', metadata: { durationMs: Date.now() - start } };
+        }
+
+        const v = validateInput(ExcelSyncInputSchema, input, start);
+        if ('error' in v) return v.error;
+
+        const adapter = new ExcelAdapter(config.excel);
+        const mapping = (v.data.columnMapping ?? config.columnMapping ?? {}) as SpreadsheetColumnMapping;
+        const rows = await adapter.readRows();
+
+        if (v.data.dataType === 'labor') {
+          const date = v.data.businessDate ?? new Date().toISOString().slice(0, 10);
+          const labor = adapter.rowsToLaborData(rows, mapping, date);
+          return { success: true, data: { type: 'labor', recordCount: labor.entries.length, labor }, metadata: { durationMs: Date.now() - start } };
+        }
+
+        const sales = adapter.rowsToSalesRecords(rows, mapping);
+        return { success: true, data: { type: 'sales', recordCount: sales.length, sales }, metadata: { durationMs: Date.now() - start } };
+      } catch (err) {
+        return { success: false, error: String(err), metadata: { durationMs: Date.now() - start } };
+      }
+    },
+  };
+}
+
+function createDataSourceStatusTool(config: HelixoConfig): MCPTool {
+  return {
+    name: 'helixo_datasource_status',
+    description: 'Check the status and last-modified time of connected data sources (SharePoint, Excel). Use to verify connectivity and detect whether data has changed.',
+    category: 'helixo',
+    version: '3.5.0',
+    tags: ['status', 'datasource', 'connectivity'],
+    cacheable: false,
+    cacheTTL: 0,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        sinceTimestamp: { type: 'string', description: 'ISO timestamp to check for changes since (optional)' },
+      },
+      required: [],
+    },
+    handler: async (input: Record<string, unknown>): Promise<MCPToolResult> => {
+      const start = Date.now();
+      const since = (input.sinceTimestamp as string) ?? new Date(Date.now() - 3600_000).toISOString();
+      const sources: Record<string, unknown> = {};
+
+      if (config.sharepoint) {
+        try {
+          const adapter = new SharePointAdapter(config.sharepoint);
+          const result = await adapter.hasFileChanged(since);
+          sources.sharepoint = { connected: true, ...result };
+        } catch (err) {
+          sources.sharepoint = { connected: false, error: String(err) };
+        }
+      }
+
+      if (config.excel) {
+        try {
+          const adapter = new ExcelAdapter(config.excel);
+          const result = await adapter.hasFileChanged(since);
+          sources.excel = { connected: true, ...result };
+        } catch (err) {
+          sources.excel = { connected: false, error: String(err) };
+        }
+      }
+
+      return {
+        success: true,
+        data: { sources, checkedAt: new Date().toISOString(), since },
+        metadata: { durationMs: Date.now() - start },
+      };
+    },
+  };
+}
+
+export { createHelixoTools as default };
